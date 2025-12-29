@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* BACKGROUND: #ebebeb (Concrete Grey) */
+    --background: 0 0% 92%;
+    
+    /* FOREGROUND: #1f1d1f (Oil Black) - Main Text */
+    --foreground: 300 3% 12%;
+
+    /* CARD: White - Pops against the concrete background */
+    --card: 0 0% 100%;
+    --card-foreground: 300 3% 12%;
+
+    /* POPOVER: White */
+    --popover: 0 0% 100%;
+    --popover-foreground: 300 3% 12%;
+
+    /* PRIMARY: #da4743 (Retro Red) - Main Buttons */
+    --primary: 1 66% 56%;
+    --primary-foreground: 0 0% 92%; /* Light text on Red button */
+
+    /* SECONDARY: #797273 (Industrial Grey) - Secondary actions */
+    --secondary: 350 3% 46%;
+    --secondary-foreground: 0 0% 92%;
+
+    /* MUTED: #c4524f (Faded Red) - Subtle backgrounds */
+    --muted: 1 48% 54%;
+    --muted-foreground: 0 0% 92%;
+
+    /* ACCENT: #892a25 (Dark Red) - Hover states or active items */
+    --accent: 3 57% 34%;
+    --accent-foreground: 0 0% 92%;
+
+    /* DESTRUCTIVE: #ee3a39 (Bright Warning Red) */
+    --destructive: 0 85% 58%;
+    --destructive-foreground: 0 0% 92%;
+
+    /* BORDER: #1f1d1f (Oil Black) - High contrast borders */
+    --border: 300 3% 12%;
+    
+    /* INPUT: #1f1d1f - Input borders */
+    --input: 300 3% 12%;
+    
+    /* RING: #4a0f11 (Deep Blood Red) - Focus outlines */
+    --ring: 358 66% 17%;
+
+    /* RADIUS: 0rem - Sharp Corners for Industrial look */
+    --radius: 1.5rem;
+
+    /* CHARTS (Optional - mapped to your reds/greys) */
+    --chart-1: 1 66% 56%;
+    --chart-2: 3 57% 34%;
+    --chart-3: 350 3% 46%;
+    --chart-4: 358 66% 17%;
+    --chart-5: 0 85% 58%;
+  }
+
+  .dark:root {
+    /* DARK MODE: Inverted Industrial (Dark Oil Background) */
+    --background: 300 3% 12%; /* #1f1d1f */
+    --foreground: 0 0% 92%;   /* #ebebeb */
+    
+    /* Cards become Deep Red/Black in dark mode */
+    --card: 358 66% 10%; 
+    --card-foreground: 0 0% 92%;
+    
+    --popover: 358 66% 10%;
+    --popover-foreground: 0 0% 92%;
+
+    /* Primary Red stays bright */
+    --primary: 1 66% 56%;
+    --primary-foreground: 0 0% 92%;
+
+    --secondary: 350 3% 46%;
+    --secondary-foreground: 0 0% 92%;
+
+    --muted: 358 66% 17%;
+    --muted-foreground: 350 3% 60%;
+
+    --accent: 358 66% 17%;
+    --accent-foreground: 0 0% 92%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 92%;
+
+    /* Borders become Grey in dark mode so they are visible */
+    --border: 350 3% 46%;
+    --input: 350 3% 46%;
+    --ring: 1 66% 56%;
+    
+    --chart-1: 1 66% 56%;
+    --chart-2: 3 57% 34%;
+    --chart-3: 350 3% 46%;
+    --chart-4: 358 66% 17%;
+    --chart-5: 0 85% 58%;
+  }
+}

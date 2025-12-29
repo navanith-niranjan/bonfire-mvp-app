@@ -1,0 +1,71 @@
+import '@/global.css';
+
+import { NAV_THEME } from '@/lib/theme';
+import { ThemeProvider } from '@react-navigation/native';
+import { PortalHost } from '@rn-primitives/portal';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useColorScheme } from 'nativewind';
+import { useFonts } from 'expo-font';
+import AuthProvider from '@/providers/auth-provider';
+import { SplashScreenController } from '@/components/splash-screen-controller';
+import { useAuthContext } from '@/hooks/use-auth-context';
+
+export {
+  // Catch any errors thrown by the Layout component.
+  ErrorBoundary,
+} from 'expo-router';
+
+// Separate RootNavigator so we can access the AuthContext
+function RootNavigator() {
+  const { isLoggedIn } = useAuthContext();
+
+  return (
+    <Stack screenOptions={{ 
+      headerShown: false,
+      gestureEnabled: false,
+    }}>
+      {/* Protected routes can be handled in individual screens or with redirects */}
+      <Stack.Screen name="index" />
+      <Stack.Screen name="welcome" />
+      <Stack.Screen name="login" />
+      <Stack.Screen name="create-account" />
+      <Stack.Screen name="verify-email" />
+      <Stack.Screen name="forgot-password" />
+      <Stack.Screen name="verify-reset-code" />
+      <Stack.Screen name="reset-password" />
+      <Stack.Screen name="google-auth" />
+      <Stack.Screen name="+not-found" />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  const { colorScheme } = useColorScheme();
+
+  const [loaded] = useFonts({
+    'Gloock-Regular': require('../assets/fonts/Gloock-Regular.ttf'),
+    'Inter-Regular': require('../assets/fonts/Inter_24pt-Regular.ttf'),
+    'Inter-Light': require('../assets/fonts/Inter_24pt-Light.ttf'),
+    'Inter-Bold': require('../assets/fonts/Inter_24pt-Bold.ttf'),
+    'PlayfairDisplay-Regular': require('../assets/fonts/PlayfairDisplay-Regular.ttf'),
+    'PlayfairDisplay-Bold': require('../assets/fonts/PlayfairDisplay-Bold.ttf'),
+    'PlayfairDisplay-Italic': require('../assets/fonts/PlayfairDisplay-Italic.ttf'),
+  });
+
+  if (!loaded) {
+    // Async font loading only occurs in development.
+    return null;
+  }
+
+  return (
+    <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
+      <AuthProvider>
+        <SplashScreenController />
+        <RootNavigator />
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        <PortalHost />
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
