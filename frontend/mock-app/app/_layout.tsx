@@ -25,8 +25,10 @@ function RootNavigator() {
       headerShown: false,
       gestureEnabled: false,
     }}>
-      {/* Protected routes can be handled in individual screens or with redirects */}
-      <Stack.Screen name="index" />
+      {/* Root index - handles auth redirect */}
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      
+      {/* Auth screens - shown before login */}
       <Stack.Screen name="welcome" />
       <Stack.Screen name="login" />
       <Stack.Screen name="create-account" />
@@ -35,6 +37,11 @@ function RootNavigator() {
       <Stack.Screen name="verify-reset-code" />
       <Stack.Screen name="reset-password" />
       <Stack.Screen name="google-auth" />
+      
+      {/* Main app with tabs - shown after login */}
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      
+      {/* Fallback */}
       <Stack.Screen name="+not-found" />
     </Stack>
   );

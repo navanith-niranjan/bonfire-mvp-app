@@ -1,93 +1,40 @@
-import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
-import { Text } from '@/components/ui/text';
-import { Link, Stack, useRouter } from 'expo-router';
-import { MoonStarIcon, StarIcon, SunIcon } from 'lucide-react-native';
-import { useColorScheme } from 'nativewind';
-import * as React from 'react';
-import { Image, type ImageStyle, View } from 'react-native';
-import { supabase } from '@/lib/supabase';
+import { useEffect } from 'react';
+import { useRouter, useSegments } from 'expo-router';
 import { useAuthContext } from '@/hooks/use-auth-context';
+import { View, ActivityIndicator } from 'react-native';
+import { Text } from '@/components/ui/text';
 
-const LOGO = {
-  light: require('@/assets/images/react-native-reusables-light.png'),
-  dark: require('@/assets/images/react-native-reusables-dark.png'),
-};
-
-const SCREEN_OPTIONS = {
-  title: 'BONFIRE',
-  headerTransparent: true,
-};
-
-const IMAGE_STYLE: ImageStyle = {
-  height: 76,
-  width: 76,
-};
-
-export default function Screen() {
-  const { colorScheme } = useColorScheme();
+export default function Index() {
+  const { isLoggedIn, isLoading } = useAuthContext();
   const router = useRouter();
-  const { isLoggedIn } = useAuthContext();
+  const segments = useSegments();
 
-  const handleSignOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Error signing out:', error);
-      } else {
-        // Navigate to welcome page after sign out
+  useEffect(() => {
+    if (isLoading) return;
+
+    // If user is logged in, redirect to tabs (home)
+    if (isLoggedIn) {
+      if (segments[0] !== '(tabs)') {
+        router.replace('/(tabs)');
+      }
+    } else {
+      // If user is not logged in, redirect to welcome
+      if (segments[0] !== 'welcome') {
         router.replace('/welcome');
       }
-    } catch (error) {
-      console.error('Unexpected error signing out:', error);
     }
-  };
+  }, [isLoggedIn, isLoading, segments, router]);
 
-  return (
-    <>
-      <Stack.Screen options={SCREEN_OPTIONS} />
-      <View className="flex-1 items-center justify-center gap-8 p-4">
-        <Image source={LOGO[colorScheme ?? 'light']} style={IMAGE_STYLE} resizeMode="contain" />
-        <View className="gap-2 p-4">
-          <Text className="ios:text-foreground font-mono text-sm text-muted-foreground">
-            2. Save to see your changes instantly.
-          </Text>
-        </View>
-        {isLoggedIn ? (
-          <Button
-            onPress={handleSignOut}
-            className="w-full max-w-xs"
-            variant="outline">
-            <Text>Sign Out</Text>
-          </Button>
-        ) : (
-          <Button
-            onPress={() => router.push('/welcome')}
-            className="w-full max-w-xs"
-            variant="outline">
-            <Text>Go to Welcome</Text>
-          </Button>
-        )}
+  // Show loading indicator while checking auth
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" />
+        <Text className="mt-4 text-muted-foreground">Loading...</Text>
       </View>
-    </>
-  );
+    );
+  }
+
+  return null;
 }
 
-const THEME_ICONS = {
-  light: SunIcon,
-  dark: MoonStarIcon,
-};
-
-function ThemeToggle() {
-  const { colorScheme, toggleColorScheme } = useColorScheme();
-
-  return (
-    <Button
-      onPressIn={toggleColorScheme}
-      size="icon"
-      variant="ghost"
-      className="ios:size-9 rounded-full web:mx-4">
-      <Icon as={THEME_ICONS[colorScheme ?? 'light']} className="size-5" />
-    </Button>
-  );
-}
