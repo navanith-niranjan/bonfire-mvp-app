@@ -6,6 +6,8 @@ import { MoonStarIcon, StarIcon, SunIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
 import { Image, type ImageStyle, View } from 'react-native';
+import { supabase } from '@/lib/supabase';
+import { useAuthContext } from '@/hooks/use-auth-context';
 
 const LOGO = {
   light: require('@/assets/images/react-native-reusables-light.png'),
@@ -25,9 +27,20 @@ const IMAGE_STYLE: ImageStyle = {
 export default function Screen() {
   const { colorScheme } = useColorScheme();
   const router = useRouter();
+  const { isLoggedIn } = useAuthContext();
 
-  const handleTestNavigation = () => {
-    router.push('/welcome');
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+      } else {
+        // Navigate to welcome page after sign out
+        router.replace('/welcome');
+      }
+    } catch (error) {
+      console.error('Unexpected error signing out:', error);
+    }
   };
 
   return (
@@ -40,12 +53,21 @@ export default function Screen() {
             2. Save to see your changes instantly.
           </Text>
         </View>
-        <Button
-          onPress={handleTestNavigation}
-          className="w-full max-w-xs"
-          variant="outline">
-          <Text>Test Button - Go to Welcome</Text>
-        </Button>
+        {isLoggedIn ? (
+          <Button
+            onPress={handleSignOut}
+            className="w-full max-w-xs"
+            variant="outline">
+            <Text>Sign Out</Text>
+          </Button>
+        ) : (
+          <Button
+            onPress={() => router.push('/welcome')}
+            className="w-full max-w-xs"
+            variant="outline">
+            <Text>Go to Welcome</Text>
+          </Button>
+        )}
       </View>
     </>
   );
