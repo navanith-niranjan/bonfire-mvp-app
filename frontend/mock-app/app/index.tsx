@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter, useSegments } from 'expo-router';
 import { useAuthContext } from '@/hooks/use-auth-context';
 import { View, ActivityIndicator } from 'react-native';
@@ -8,18 +8,28 @@ export default function Index() {
   const { isLoggedIn, isLoading } = useAuthContext();
   const router = useRouter();
   const segments = useSegments();
+  const hasRedirected = useRef(false);
 
   useEffect(() => {
-    if (isLoading) return;
+    // Wait for auth to finish loading before redirecting
+    if (isLoading) {
+      hasRedirected.current = false;
+      return;
+    }
+
+    // Prevent multiple redirects
+    if (hasRedirected.current) return;
 
     // If user is logged in, redirect to tabs (home)
     if (isLoggedIn) {
       if (segments[0] !== '(tabs)') {
+        hasRedirected.current = true;
         router.replace('/(tabs)');
       }
     } else {
       // If user is not logged in, redirect to welcome
       if (segments[0] !== 'welcome') {
+        hasRedirected.current = true;
         router.replace('/welcome');
       }
     }

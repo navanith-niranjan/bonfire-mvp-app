@@ -42,10 +42,9 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   // Fetch the profile when the session changes
+  // Don't set isLoading here - profile is optional and shouldn't block redirect
   useEffect(() => {
     const fetchProfile = async () => {
-      setIsLoading(true);
-
       if (session) {
         const { data } = await supabase
           .from('profiles')
@@ -57,8 +56,6 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       } else {
         setProfile(null);
       }
-
-      setIsLoading(false);
     };
 
     fetchProfile();
@@ -70,7 +67,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         session,
         isLoading,
         profile,
-        isLoggedIn: session != undefined,
+        isLoggedIn: !!session, // Properly check if session exists (not null/undefined)
       }}
     >
       {children}
