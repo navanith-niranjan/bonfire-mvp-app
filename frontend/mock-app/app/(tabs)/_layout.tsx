@@ -10,12 +10,18 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: false, // Always hide labels globally
         tabBarActiveTintColor: isDark ? '#fff' : '#000',
         tabBarInactiveTintColor: isDark ? '#666' : '#999',
         tabBarStyle: {
           backgroundColor: isDark ? '#000' : '#fff',
-          borderTopColor: isDark ? '#333' : '#e5e5e5',
-          borderTopWidth: 1,
+          borderTopWidth: 0,
+          paddingHorizontal: 20,
+          paddingTop: 12,
+          paddingBottom: 12,
+        },
+        tabBarItemStyle: {
+          gap: 0,
         },
         tabBarLabelStyle: {
           fontSize: 12,

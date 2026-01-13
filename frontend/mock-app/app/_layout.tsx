@@ -8,6 +8,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'nativewind';
 import { useFonts } from 'expo-font';
 import AuthProvider from '@/providers/auth-provider';
+import { WalletProvider } from '@/providers/wallet-provider';
+import { InventoryProvider } from '@/providers/inventory-provider';
 import { SplashScreenController } from '@/components/splash-screen-controller';
 import { useAuthContext } from '@/hooks/use-auth-context';
 
@@ -68,10 +70,14 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
       <AuthProvider>
-        <SplashScreenController />
-        <RootNavigator />
-        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        <PortalHost />
+        <WalletProvider>
+          <InventoryProvider>
+            <SplashScreenController />
+            <RootNavigator />
+            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+            <PortalHost />
+          </InventoryProvider>
+        </WalletProvider>
       </AuthProvider>
     </ThemeProvider>
   );
