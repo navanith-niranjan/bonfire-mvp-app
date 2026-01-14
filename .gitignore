@@ -14,6 +14,12 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 .env*.local
+.venv
+.venv.local
+.venv.development.local
+.venv.test.local
+.venv.production.local
+.venv*.local
 
 # Build outputs
 dist/
@@ -91,6 +97,30 @@ $RECYCLE.BIN/
 *.db
 *.sqlite
 *.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.coverage
+htmlcov/
+.tox/
 
 # Misc
 *.pem

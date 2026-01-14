@@ -1,0 +1,25 @@
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+
+class Settings:
+    """Application settings loaded from environment variables."""
+    
+    # Supabase Configuration
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+    SUPABASE_PUBLISHABLE_KEY: str = os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
+    SUPABASE_SECRET_KEY: str = os.getenv("SUPABASE_SECRET_KEY", "")
+    
+    # Database
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+    
+    # App Configuration
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
+
+
+settings = Settings()
+
