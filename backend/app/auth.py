@@ -22,7 +22,8 @@ def get_jwks_client() -> PyJWKClient:
                 detail="SUPABASE_URL not configured"
             )
         # Supabase JWKS endpoint
-        jwks_url = f"{settings.SUPABASE_URL}/.well-known/jwks.json"
+        # Note: JWKS endpoint is at /auth/v1/.well-known/jwks.json
+        jwks_url = f"{settings.SUPABASE_URL}/auth/v1/.well-known/jwks.json"
         _jwks_client = PyJWKClient(jwks_url)
     return _jwks_client
 
@@ -54,12 +55,15 @@ def decode_jwt_token(token: str) -> dict:
         signing_key = jwks_client.get_signing_key_from_jwt(token)
         
         # Decode and verify token using the public key from JWKS
-        # Supabase uses RS256 algorithm with JWKS
+        # Supabase can use RS256 (RSA) or ES256 (Elliptic Curve) algorithms
+        # The algorithm is determined by the signing key in JWKS
         decoded = jwt.decode(
             token,
             signing_key.key,
-            algorithms=["RS256"],
-            options={"verify_signature": True, "verify_exp": True}
+            algorithms=["RS256", "ES256"],  # Support both RSA and EC algorithms
+            audience="authenticated",  # Supabase user tokens have this audience
+            issuer=f"{settings.SUPABASE_URL}/auth/v1",  # Verify issuer matches Supabase
+            options={"verify_signature": True, "verify_exp": True, "verify_aud": True, "verify_iss": True}
         )
         return decoded
     except jwt.ExpiredSignatureError:

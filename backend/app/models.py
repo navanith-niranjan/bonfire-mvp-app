@@ -1,7 +1,7 @@
 from sqlmodel import SQLModel, Field, Column
 from sqlalchemy import Enum, JSON
 from typing import Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime
 import enum
 
 
@@ -13,11 +13,11 @@ class Wallet(SQLModel, table=True):
     user_id: str = Field(index=True, description="Supabase user ID")
     balance: float = Field(default=0.0, description="Current wallet balance")
     created_at: Optional[datetime] = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.utcnow(),
         description="Timestamp when wallet was created"
     )
     updated_at: Optional[datetime] = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.utcnow(),
         description="Timestamp when wallet was last updated"
     )
 
@@ -86,7 +86,7 @@ class Inventory(SQLModel, table=True):
     
     # Timestamps
     submitted_at: Optional[datetime] = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.utcnow(),
         description="When user submitted/added this item"
     )
     authenticated_at: Optional[datetime] = Field(
@@ -98,11 +98,11 @@ class Inventory(SQLModel, table=True):
         description="When item was moved to vault"
     )
     created_at: Optional[datetime] = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.utcnow(),
         description="Timestamp when record was created"
     )
     updated_at: Optional[datetime] = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.utcnow(),
         description="Timestamp when record was last updated"
     )
 
