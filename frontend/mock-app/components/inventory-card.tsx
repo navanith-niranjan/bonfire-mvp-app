@@ -6,10 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, ArrowLeftRight, Gift, Send } from 'lucide-react-native';
 import { useInventory } from '@/hooks/use-inventory';
+import { useRouter } from 'expo-router';
 
 export function InventoryCard() {
   const { cards } = useInventory();
   const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
+
+  const handleSubmit = () => {
+    router.push('/submit/partA');
+  };
 
   // Filter cards based on search query
   const filteredCards = useMemo(() => {
@@ -89,7 +95,8 @@ export function InventoryCard() {
           </Button>
           <Button
             className="flex-1"
-            variant="outline">
+            variant="outline"
+            onPress={handleSubmit}>
             <Send size={18} color="white" />
             <Text>Submit</Text>
           </Button>

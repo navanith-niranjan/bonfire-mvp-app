@@ -63,7 +63,14 @@ def decode_jwt_token(token: str) -> dict:
             algorithms=["RS256", "ES256"],  # Support both RSA and EC algorithms
             audience="authenticated",  # Supabase user tokens have this audience
             issuer=f"{settings.SUPABASE_URL}/auth/v1",  # Verify issuer matches Supabase
-            options={"verify_signature": True, "verify_exp": True, "verify_aud": True, "verify_iss": True}
+            options={
+                "verify_signature": True,
+                "verify_exp": True,
+                "verify_aud": True,
+                "verify_iss": True,
+                "verify_iat": True,
+            },
+            leeway=60  # Allow 60 seconds of clock skew for iat and exp
         )
         return decoded
     except jwt.ExpiredSignatureError:
