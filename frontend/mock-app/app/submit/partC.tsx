@@ -1,39 +1,161 @@
 import { View, ScrollView, ActivityIndicator } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft } from 'lucide-react-native';
+import { useAuthContext } from '@/hooks/use-auth-context';
+import { useInventory } from '@/hooks/use-inventory';
 
 const SCREEN_OPTIONS = {
   title: 'Part C',
   headerShown: false,
 };
 
+type PokemonCard = {
+  id: string;
+  instanceId?: string;
+  name: string;
+  images: {
+    small: string;
+    large: string;
+  };
+  set: {
+    name: string;
+  };
+  condition: {
+    type: 'Raw' | 'PSA' | 'Beckett' | 'TAG';
+    grade?: string;
+  } | null;
+};
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+async function apiRequest(endpoint: string, method: string, token: string, body?: any) {
+  if (!API_URL) {
+    throw new Error('API URL is not configured. Please set EXPO_PUBLIC_API_URL in your .env file');
+  }
+
+  try {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      let errorDetail = `HTTP ${response.status}`;
+      try {
+        const errorJson = await response.json();
+        errorDetail = errorJson.detail || JSON.stringify(errorJson);
+      } catch {
+        try {
+          errorDetail = await response.text();
+        } catch {}
+      }
+      throw new Error(`HTTP ${response.status}: ${errorDetail}`);
+    }
+
+    return response.json();
+  } catch (error: any) {
+    if (error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
+      throw new Error(`Cannot connect to backend at ${API_URL}. Is the server running?`);
+    }
+    throw error;
+  }
+}
+
 export default function SubmitPartCScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const { session } = useAuthContext();
+  const { refreshInventory } = useInventory();
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  // Parse cards from params
+  const selectedCards = useMemo(() => {
+    try {
+      if (params.cards && typeof params.cards === 'string') {
+        return JSON.parse(params.cards) as PokemonCard[];
+      }
+    } catch (error) {
+      console.error('Error parsing cards:', error);
+    }
+    return [];
+  }, [params.cards]);
 
   const handleBack = () => {
     router.back();
   };
 
-  const handleGenerateLabel = () => {
+  const handleGenerateLabel = async () => {
+    if (!session?.access_token) {
+      console.error('Not authenticated');
+      return;
+    }
+
     setIsLoading(true);
+    const startTime = Date.now();
     
-    // Show loading for 5 seconds
-    setTimeout(() => {
+    try {
+      // Prepare inventory items from selected cards
+      const inventoryItems = selectedCards.map(card => {
+        const conditionStr = card.condition 
+          ? card.condition.type === 'Raw' 
+            ? 'Raw' 
+            : `${card.condition.type} ${card.condition.grade}`
+          : 'Raw';
+        
+        return {
+          name: card.name,
+          image_url: card.images.large || card.images.small,
+          collectible_type: 'card',
+          external_id: card.id,
+          external_api: 'pokemontcg',
+          item_data: {
+            condition: conditionStr,
+            set: card.set.name,
+          },
+        };
+      });
+
+      // Send to backend
+      await apiRequest('/inventory/items', 'POST', session.access_token, {
+        items: inventoryItems,
+      });
+
+      // Ensure loading shows for at least 5 seconds total
+      const elapsed = Date.now() - startTime;
+      const remainingTime = Math.max(0, 5000 - elapsed);
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+      }
+      
       setIsLoading(false);
       setIsSuccess(true);
+      
+      // Refresh inventory to show newly added cards
+      await refreshInventory();
       
       // Navigate back to vault after 3 seconds
       setTimeout(() => {
         router.replace('/(tabs)/vault');
       }, 3000);
-    }, 5000);
+    } catch (error) {
+      console.error('Error creating inventory items:', error);
+      setIsLoading(false);
+      // Still show success for mock MVP, but log the error
+      setIsSuccess(true);
+      setTimeout(() => {
+        router.replace('/(tabs)/vault');
+      }, 3000);
+    }
   };
 
   return (

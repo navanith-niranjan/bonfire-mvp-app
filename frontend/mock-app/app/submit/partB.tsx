@@ -41,6 +41,11 @@ export default function SubmitPartBScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [cardConditions, setCardConditions] = useState<Map<string, CardCondition>>(new Map());
   const flatListRef = useRef<FlatList>(null);
+  
+  // Check if this is for trade (has returnPath)
+  const returnPath = params.returnPath as string | undefined;
+  const source = params.source as string | undefined;
+  const originalCards = params.originalCards as string | undefined;
 
   // Parse selected cards from params
   const selectedCards = useMemo(() => {
@@ -222,9 +227,8 @@ export default function SubmitPartBScreen() {
     
     // Simulate API call delay
     const timer = setTimeout(() => {
-      // Placeholder: In production, this would fetch from a real pricing API
-      // Example: fetch(`https://api.tcgplayer.com/pricing/product/${cardId}`)
-      setMarketPrice('Price unavailable');
+      // Price API not yet provided - return NaN
+      setMarketPrice('NaN');
       setIsLoadingPrice(false);
     }, 500);
 
@@ -380,7 +384,37 @@ export default function SubmitPartBScreen() {
               variant="default"
               disabled={!allCardsHaveConditions}
               onPress={() => {
-                router.push('/submit/partC');
+                // Prepare cards data with conditions
+                const cardsWithConditions = selectedCards.map(card => {
+                  const cardKey = card.instanceId || card.id;
+                  const condition = cardConditions.get(cardKey);
+                  return {
+                    ...card,
+                    condition: condition ? {
+                      type: condition.type,
+                      grade: condition.grade,
+                    } : null,
+                  };
+                });
+                
+                // If this is for trade, return to trade deck with cards
+                if (returnPath && source === 'trade') {
+                  router.push({
+                    pathname: returnPath as any,
+                    params: {
+                      receiveCards: JSON.stringify(cardsWithConditions),
+                      ...(originalCards && { cards: originalCards }), // Preserve original cards
+                    },
+                  });
+                } else {
+                  // Otherwise, continue to partC (normal submit flow)
+                  router.push({
+                    pathname: '/submit/partC',
+                    params: {
+                      cards: JSON.stringify(cardsWithConditions),
+                    },
+                  });
+                }
               }}
               style={{
                 shadowColor: '#000',

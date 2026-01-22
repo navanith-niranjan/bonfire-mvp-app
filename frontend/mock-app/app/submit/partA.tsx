@@ -1,5 +1,5 @@
 import { View, ScrollView, FlatList, TouchableOpacity, Image, useWindowDimensions, TextInput, ActivityIndicator, Animated, KeyboardAvoidingView, Platform } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,8 @@ type PokemonCard = {
   rarity?: string;
 };
 
-const POKEMON_TCG_API = 'https://api.pokemontcg.io/v2';
+const POKEMON_TCG_API = process.env.EXPO_PUBLIC_POKEMON_TCG_API_URL;
+const POKEMON_TCG_API_KEY = process.env.EXPO_PUBLIC_POKEMON_TCG_API_KEY;
 
 // Simple cache for API responses
 const apiCache = new Map<string, { data: PokemonCard[]; timestamp: number }>();
@@ -36,6 +37,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export default function SubmitPartAScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { width } = useWindowDimensions();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -52,6 +54,38 @@ export default function SubmitPartAScreen() {
   const handleBack = () => {
     router.back();
   };
+
+  // Initialize with existing receive cards if editing
+  useEffect(() => {
+    if (params.existingReceiveCards && typeof params.existingReceiveCards === 'string') {
+      try {
+        const existingCards = JSON.parse(params.existingReceiveCards) as PokemonCard[];
+        // Pre-select the existing cards
+        const newSelectedCards = new Map<string, PokemonCard>();
+        const newCardQuantities = new Map<string, number>();
+        
+        existingCards.forEach(card => {
+          const cardId = card.id;
+          newSelectedCards.set(cardId, card);
+          // Count how many instances of this card exist
+          const quantity = existingCards.filter(c => c.id === cardId).length;
+          newCardQuantities.set(cardId, quantity);
+        });
+        
+        setSelectedCards(newSelectedCards);
+        setCardQuantities(newCardQuantities);
+        
+        // Also add these cards to the display so they're visible
+        setCards(prevCards => {
+          const existingIds = new Set(prevCards.map(c => c.id));
+          const cardsToAdd = existingCards.filter(card => !existingIds.has(card.id));
+          return [...prevCards, ...cardsToAdd];
+        });
+      } catch (error) {
+        console.error('Error parsing existing receive cards:', error);
+      }
+    }
+  }, [params.existingReceiveCards]);
 
   // Debounce the search query - reduced delay for faster response
   useEffect(() => {
@@ -99,9 +133,19 @@ export default function SubmitPartAScreen() {
     if (!query) {
       // Fetch random cards when search is empty
       setIsSearching(true);
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (POKEMON_TCG_API_KEY) {
+        headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
+      }
+      
       fetch(
         `${POKEMON_TCG_API}/cards?pageSize=24&orderBy=-set.releaseDate&select=id,name,images,set`,
-        { signal: controller.signal }
+        { 
+          signal: controller.signal,
+          headers,
+        }
       )
         .then(response => {
           if (controller.signal.aborted) return null;
@@ -146,9 +190,19 @@ export default function SubmitPartAScreen() {
     // Show loading immediately when searching
     setIsSearching(true);
 
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    if (POKEMON_TCG_API_KEY) {
+      headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
+    }
+    
     fetch(
       `${POKEMON_TCG_API}/cards?q=name:*${encodeURIComponent(query)}*&pageSize=50&select=id,name,images,set`,
-      { signal: controller.signal }
+      { 
+        signal: controller.signal,
+        headers,
+      }
     )
       .then(response => {
         if (controller.signal.aborted) return null;
@@ -605,6 +659,9 @@ export default function SubmitPartAScreen() {
                   pathname: '/submit/partB',
                   params: {
                     cards: JSON.stringify(selectedCardsData),
+                    ...(params.returnPath && { returnPath: params.returnPath as string }),
+                    ...(params.source && { source: params.source as string }),
+                    ...(params.originalCards && { originalCards: params.originalCards as string }),
                   },
                 });
               }}>

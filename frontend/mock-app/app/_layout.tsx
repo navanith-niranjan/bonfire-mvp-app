@@ -48,6 +48,10 @@ function RootNavigator() {
             <Stack.Screen name="submit/partB" options={{ headerShown: false }} />
             <Stack.Screen name="submit/partC" options={{ headerShown: false }} />
       
+      {/* Trade flow */}
+      <Stack.Screen name="trade/deck" options={{ headerShown: false }} />
+      <Stack.Screen name="trade/select-inventory" options={{ headerShown: false }} />
+      
       {/* Fallback */}
       <Stack.Screen name="+not-found" />
     </Stack>
