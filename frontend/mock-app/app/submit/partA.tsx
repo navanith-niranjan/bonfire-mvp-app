@@ -3,53 +3,33 @@ import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ArrowRight, Search, X, Plus, Minus, Camera, Scan } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Plus, Minus, Camera } from 'lucide-react-native';
+import { useSmartCardSearch } from '@/hooks/use-smart-card-search';
+import { SmartCardSearchInput } from '@/components/smart-card-search-input';
+import type { PokemonCard } from '@/lib/smart-card-search';
 
 const SCREEN_OPTIONS = {
   title: 'Select One or More Cards',
   headerShown: false,
 };
 
-type PokemonCard = {
-  id: string;
-  name: string;
-  images: {
-    small: string;
-    large: string;
-  };
-  set: {
-    name: string;
-  };
-  rarity?: string;
-};
-
-const POKEMON_TCG_API = process.env.EXPO_PUBLIC_POKEMON_TCG_API_URL;
-const POKEMON_TCG_API_KEY = process.env.EXPO_PUBLIC_POKEMON_TCG_API_KEY;
-
-// Simple cache for API responses
-const apiCache = new Map<string, { data: PokemonCard[]; timestamp: number }>();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
 export default function SubmitPartAScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { width } = useWindowDimensions();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [cards, setCards] = useState<PokemonCard[]>([]);
   const [cardQuantities, setCardQuantities] = useState<Map<string, number>>(new Map()); // Track quantities for each card
   const [selectedCards, setSelectedCards] = useState<Map<string, PokemonCard>>(new Map());
-  const [isSearching, setIsSearching] = useState(true); // Start with loading state
-  const [currentSearchQuery, setCurrentSearchQuery] = useState(''); // Track which query the current cards represent
   const [isInitialLoad, setIsInitialLoad] = useState(true); // Track initial load
-  const inputRef = useRef<TextInput>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const latestRequestIdRef = useRef(0);
+  
+  // Use the smart card search hook
+  const { searchQuery, setSearchQuery, cards, isSearching, clearSearch } = useSmartCardSearch({
+    debounceMs: 150,
+    pageSize: 50,
+  });
 
   const handleBack = () => {
     router.back();
@@ -68,192 +48,24 @@ export default function SubmitPartAScreen() {
           const cardId = card.id;
           newSelectedCards.set(cardId, card);
           // Count how many instances of this card exist
-          const quantity = existingCards.filter(c => c.id === cardId).length;
+          const quantity = existingCards.filter((c: PokemonCard) => c.id === cardId).length;
           newCardQuantities.set(cardId, quantity);
         });
         
         setSelectedCards(newSelectedCards);
         setCardQuantities(newCardQuantities);
-        
-        // Also add these cards to the display so they're visible
-        setCards(prevCards => {
-          const existingIds = new Set(prevCards.map(c => c.id));
-          const cardsToAdd = existingCards.filter(card => !existingIds.has(card.id));
-          return [...prevCards, ...cardsToAdd];
-        });
       } catch (error) {
         console.error('Error parsing existing receive cards:', error);
       }
     }
   }, [params.existingReceiveCards]);
 
-  // Debounce the search query - reduced delay for faster response
+  // Track when initial load is complete
   useEffect(() => {
-    // Clear cards immediately when user types (before debounce)
-    // This ensures old cards don't show while new search is happening
-    if (searchQuery.trim() !== debouncedQuery.trim()) {
-      setCards([]);
-      setIsSearching(true);
-    }
-
-    const timeoutId = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 150); // Reduced to 150ms for faster response
-
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery, debouncedQuery]);
-
-  // Search Pokemon TCG API with request cancellation and caching
-  useEffect(() => {
-    // Cancel any previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    const query = debouncedQuery.trim();
-    const cacheKey = query || '__random__';
-    const cached = apiCache.get(cacheKey);
-    
-    // Check cache first - if cached, use it immediately
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      setCards(cached.data);
-      setCurrentSearchQuery(query);
-      setIsSearching(false);
+    if (cards.length > 0 || !isSearching) {
       setIsInitialLoad(false);
-      return;
     }
-
-    // Create new abort controller for this request
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    
-    // Increment request ID to track latest request
-    const requestId = ++latestRequestIdRef.current;
-
-    if (!query) {
-      // Fetch random cards when search is empty
-      setIsSearching(true);
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (POKEMON_TCG_API_KEY) {
-        headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
-      }
-      
-      fetch(
-        `${POKEMON_TCG_API}/cards?pageSize=24&orderBy=-set.releaseDate&select=id,name,images,set`,
-        { 
-          signal: controller.signal,
-          headers,
-        }
-      )
-        .then(response => {
-          if (controller.signal.aborted) return null;
-          return response.json();
-        })
-        .then(data => {
-          if (controller.signal.aborted || !data) return;
-          
-          const cardsData = data.data || [];
-          
-          // Only update if this is still the latest request
-          if (latestRequestIdRef.current === requestId) {
-            setCards(cardsData);
-            setCurrentSearchQuery(query);
-            setIsSearching(false);
-            setIsInitialLoad(false);
-            apiCache.set(cacheKey, { data: cardsData, timestamp: Date.now() });
-          }
-        })
-        .catch((error: any) => {
-          if (error.name === 'AbortError') {
-            // Request was cancelled, ignore
-            return;
-          }
-          console.error('Error fetching random cards:', error);
-          // Use cached data if available, even if expired
-          if (latestRequestIdRef.current === requestId) {
-            if (cached) {
-              setCards(cached.data);
-              setCurrentSearchQuery(query);
-            } else {
-              setCards([]);
-              setCurrentSearchQuery(query);
-            }
-            setIsSearching(false);
-            setIsInitialLoad(false);
-          }
-        });
-      return;
-    }
-
-    // Show loading immediately when searching
-    setIsSearching(true);
-
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-    if (POKEMON_TCG_API_KEY) {
-      headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
-    }
-    
-    fetch(
-      `${POKEMON_TCG_API}/cards?q=name:*${encodeURIComponent(query)}*&pageSize=50&select=id,name,images,set`,
-      { 
-        signal: controller.signal,
-        headers,
-      }
-    )
-      .then(response => {
-        if (controller.signal.aborted) return null;
-        return response.json();
-      })
-      .then(data => {
-        if (controller.signal.aborted || !data) return;
-        
-        const cardsData = data.data || [];
-        
-          // Only update if this is still the latest request
-          if (latestRequestIdRef.current === requestId) {
-            setCards(cardsData);
-            setCurrentSearchQuery(query);
-            setIsSearching(false);
-            setIsInitialLoad(false);
-            apiCache.set(cacheKey, { data: cardsData, timestamp: Date.now() });
-          }
-      })
-        .catch((error: any) => {
-          if (error.name === 'AbortError') {
-            // Request was cancelled, ignore
-            return;
-          }
-          console.error('Error searching cards:', error);
-          // Use cached data if available, even if expired
-          if (latestRequestIdRef.current === requestId) {
-            if (cached) {
-              setCards(cached.data);
-              setCurrentSearchQuery(query);
-            } else {
-              setCards([]);
-              setCurrentSearchQuery(query);
-            }
-            setIsSearching(false);
-            setIsInitialLoad(false);
-          }
-        })
-        .finally(() => {
-          // Only update loading state if this is still the latest request
-          if (latestRequestIdRef.current === requestId) {
-            setIsSearching(false);
-            setIsInitialLoad(false);
-          }
-        });
-
-    // Cleanup: abort request if query changes
-    return () => {
-      controller.abort();
-    };
-  }, [debouncedQuery]);
+  }, [cards, isSearching]);
 
   // Toggle card selection - adds card with quantity 1 if not selected
   const toggleCardSelection = (card: PokemonCard) => {
@@ -310,14 +122,6 @@ export default function SubmitPartAScreen() {
     });
   }, []);
 
-  // Clear search input
-  const clearSearch = useCallback(() => {
-    setSearchQuery('');
-    // Maintain focus on input
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 100);
-  }, []);
 
   // Organize cards: selected first, then others
   // Always include selected cards, even when searching
@@ -345,13 +149,9 @@ export default function SubmitPartAScreen() {
   }, [cards, cardQuantities, selectedCards]);
 
   // Determine if we should show loading
-  // Show loading if: initial load OR user is typing (searchQuery !== debouncedQuery) OR actively searching OR cards don't match current query
   const shouldShowLoading = useMemo(() => {
-    if (isInitialLoad) return true;
-    const queryMismatch = searchQuery.trim() !== debouncedQuery.trim();
-    const cardsMismatch = currentSearchQuery.trim() !== debouncedQuery.trim();
-    return queryMismatch || isSearching || cardsMismatch;
-  }, [isInitialLoad, searchQuery, debouncedQuery, currentSearchQuery, isSearching]);
+    return isInitialLoad || isSearching;
+  }, [isInitialLoad, isSearching]);
 
   // Combine actual cards with loading placeholders
   type DisplayItem = PokemonCard | { id: string; isPlaceholder: true };
@@ -540,7 +340,7 @@ export default function SubmitPartAScreen() {
           size="icon"
           disabled={true}
           className="rounded-full -mr-2">
-          <Icon as={Scan} className="size-5" />
+          <Icon as={Camera} className="size-5" />
         </Button>
       </View>
 
@@ -565,30 +365,16 @@ export default function SubmitPartAScreen() {
 
       {/* Input field */}
       <View className="mb-6">
-        <View className="relative w-full flex-row items-center">
-          <View className="absolute left-3 z-10">
-            <Search size={18} color="#999" />
-          </View>
-          <Input
-            ref={inputRef}
-            placeholder="Lugia V Alt Art"
-            className="w-full pl-10 pr-10"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            blurOnSubmit={false}
-          />
-          {searchQuery.length > 0 && !isSearching && (
-            <TouchableOpacity
-              onPress={clearSearch}
-              className="absolute right-3 z-10"
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <X size={18} color="#999" />
-            </TouchableOpacity>
-          )}
-        </View>
+        <SmartCardSearchInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onClear={clearSearch}
+          placeholder="Lugia V Alt Art"
+          isSearching={isSearching}
+        />
       </View>
     </>
-  ), [searchQuery, handleBack, clearSearch, isSearching]);
+  ), [searchQuery, handleBack, clearSearch, isSearching, setSearchQuery]);
 
 
   return (

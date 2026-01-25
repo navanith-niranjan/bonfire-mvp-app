@@ -50,6 +50,18 @@ def decode_jwt_token(token: str) -> dict:
         if token.startswith("Bearer "):
             token = token[7:]
         
+        # Decode without verification first to check issuer (for debugging)
+        unverified = jwt.decode(token, options={"verify_signature": False})
+        expected_issuer = f"{settings.SUPABASE_URL}/auth/v1"
+        actual_issuer = unverified.get("iss", "not found")
+        
+        if actual_issuer != expected_issuer:
+            print(f"⚠️ Issuer mismatch detected!")
+            print(f"   Expected: {expected_issuer}")
+            print(f"   Actual:   {actual_issuer}")
+            print(f"   Backend SUPABASE_URL: {settings.SUPABASE_URL}")
+            print(f"   Make sure EXPO_PUBLIC_SUPABASE_URL matches exactly!")
+        
         # Get JWKS client and signing key
         jwks_client = get_jwks_client()
         signing_key = jwks_client.get_signing_key_from_jwt(token)

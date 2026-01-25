@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
 import { supabase } from '@/lib/supabase';
-import { GoogleSignInButton } from '@/components/google-sign-in-button';
 import * as React from 'react';
 import { type TextInput, View } from 'react-native';
 
@@ -109,7 +108,6 @@ export function SignInForm() {
               <Text className="text-muted-foreground px-4 text-sm">or</Text>
               <Separator className="flex-1" />
             </View>
-            <GoogleSignInButton />
           </View>
           <Button 
             className="w-full" 

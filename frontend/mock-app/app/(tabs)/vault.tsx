@@ -5,7 +5,7 @@ import { InventoryCard } from '@/components/inventory-card';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { ActivityIndicator } from 'react-native';
-import { ArrowLeftRight, Gift, Send, X } from 'lucide-react-native';
+import { ArrowDownUp, Gift, Send, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useInventory } from '@/hooks/use-inventory';
 
@@ -215,34 +215,38 @@ export default function VaultScreen() {
             zIndex: 100,
           }}>
           <View className="flex-row gap-3">
-            <Button
-              className="flex-1"
-              variant="outline"
-              onPress={handleTradeClick}
-              style={{
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.2,
-                shadowRadius: 4,
-                elevation: 4,
-              }}>
-              <X size={18} color="white" />
-              <Text>Cancel</Text>
-            </Button>
-            <Button
-              className="flex-1"
-              variant="default"
-              onPress={handleContinueTrade}
-              disabled={selectedCardIds.size === 0}
-              style={{
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.2,
-                shadowRadius: 4,
-                elevation: 4,
-              }}>
-              <Text>Continue</Text>
-            </Button>
+            <View className="flex-1" style={{ minWidth: 0 }}>
+              <Button
+                variant="outline"
+                onPress={handleTradeClick}
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 4,
+                  width: '100%',
+                }}>
+                <X size={18} color="white" />
+                <Text>Cancel</Text>
+              </Button>
+            </View>
+            <View className="flex-1" style={{ minWidth: 0 }}>
+              <Button
+                variant="default"
+                onPress={handleContinueTrade}
+                disabled={selectedCardIds.size === 0}
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 4,
+                  width: '100%',
+                }}>
+                <Text>Continue</Text>
+              </Button>
+            </View>
           </View>
         </View>
       ) : (
@@ -267,7 +271,8 @@ export default function VaultScreen() {
                 shadowRadius: 4,
                 elevation: 4,
               }}>
-              <ArrowLeftRight size={18} color="white" />
+              <ArrowDownUp size={18} color="white" />
+              <Text>Trade</Text>
             </Button>
             <Button
               className="flex-1"

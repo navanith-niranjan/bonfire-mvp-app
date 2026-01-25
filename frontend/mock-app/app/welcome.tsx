@@ -43,9 +43,9 @@ export default function WelcomeScreen() {
         </View>
         
         {/* Content at the bottom */}
-        <View className="flex-1 items-center justify-end pb-20 gap-8 p-4">
-          <View className="gap-4 items-center">
-            <Text className="text-3xl font-Gloock text-center text-muted-foreground">
+        <View className="flex-1 items-center justify-end pb-32 gap-8 p-4">
+          <View className="gap-2 items-center -mt-16">
+            <Text className="text-5xl font-Gloock text-center text-muted-foreground">
               BONFIRE
             </Text>
             <Text className="text-5xl font-PlayfairDisplayItalic text-center">
