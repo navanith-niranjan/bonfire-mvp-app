@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import wallet, inventory, trade
+from app.routers import wallet, inventory, trade, cards, transactions
 from app.database import init_db, get_supabase_client
 from app import models  # Import models so SQLModel knows about them
 
@@ -35,6 +35,8 @@ app.add_middleware(
 app.include_router(wallet.router)
 app.include_router(inventory.router)
 app.include_router(trade.router)
+app.include_router(cards.router)
+app.include_router(transactions.router)
 
 
 @app.get("/")

@@ -24,14 +24,17 @@ type PokemonCard = {
     name: string;
   };
   quantity: number;
+  market_price?: number | null;
 };
 
 type ConditionType = 'Raw' | 'PSA' | 'Beckett' | 'TAG';
 type ConditionGrade = '10' | '9' | '8' | '7' | '6' | '5' | '4' | '3' | '2' | '1';
+type RawCondition = 'NM' | 'LP' | 'MP' | 'HP' | 'D';
 
 type CardCondition = {
   type: ConditionType;
   grade?: ConditionGrade;
+  rawCondition?: RawCondition;
 };
 
 export default function SubmitPartBScreen() {
@@ -81,11 +84,12 @@ export default function SubmitPartBScreen() {
       // Condition is valid if:
       // - It exists
       // - It has a type
+      // - If it's Raw, it must have a rawCondition
       // - If it's not Raw, it must have a grade
       if (!condition || !condition.type) return false;
       
       if (condition.type === 'Raw') {
-        return true; // Raw doesn't need a grade
+        return condition.rawCondition !== undefined; // Raw needs a condition (NM, LP, etc.)
       }
       
       // For grading companies (PSA, Beckett, TAG), a grade is required
@@ -94,12 +98,12 @@ export default function SubmitPartBScreen() {
   }, [selectedCards, cardConditions]);
 
   // Handle condition selection
-  const handleConditionSelect = (type: ConditionType, grade?: ConditionGrade) => {
+  const handleConditionSelect = (type: ConditionType, grade?: ConditionGrade, rawCondition?: RawCondition) => {
     if (!currentCard) return;
     const cardKey = currentCard.instanceId || currentCard.id;
     setCardConditions(prev => {
       const newMap = new Map(prev);
-      newMap.set(cardKey, { type, grade });
+      newMap.set(cardKey, { type, grade, rawCondition });
       return newMap;
     });
   };
@@ -130,6 +134,13 @@ export default function SubmitPartBScreen() {
 
     const conditionTypes: ConditionType[] = ['Raw', 'PSA', 'Beckett', 'TAG'];
     const grades: ConditionGrade[] = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'];
+    const rawConditions: { value: RawCondition; label: string }[] = [
+      { value: 'NM', label: 'Near Mint (NM)' },
+      { value: 'LP', label: 'Lightly Played (LP)' },
+      { value: 'MP', label: 'Moderately Played (MP)' },
+      { value: 'HP', label: 'Heavily Played (HP)' },
+      { value: 'D', label: 'Damaged (D)' },
+    ];
     const isRawSelected = currentCondition?.type === 'Raw';
     const hasNoCondition = !currentCondition?.type;
 
@@ -139,47 +150,75 @@ export default function SubmitPartBScreen() {
         <View>
           <Text className="text-sm font-medium mb-2">Grading Company</Text>
           <View className="flex-row flex-wrap gap-2">
-            {conditionTypes.map((type) => (
-              <Button
-                key={type}
-                variant={currentCondition?.type === type ? 'default' : 'outline'}
-                size="sm"
-                onPress={() => {
-                  if (type === 'Raw') {
-                    handleConditionSelect('Raw');
-                  } else {
-                    // Set first grade when selecting a grading company
-                    handleConditionSelect(type, '10');
-                  }
-                }}
-                className="min-w-[80px]">
-                <Text>{type}</Text>
-              </Button>
-            ))}
+            {conditionTypes.map((type) => {
+              const isDisabled = type === 'Beckett' || type === 'TAG';
+              return (
+                <Button
+                  key={type}
+                  variant={currentCondition?.type === type ? 'default' : 'outline'}
+                  size="sm"
+                  disabled={isDisabled}
+                  onPress={() => {
+                    if (isDisabled) return;
+                    if (type === 'Raw') {
+                      handleConditionSelect('Raw', undefined, undefined);
+                    } else {
+                      // Set first grade when selecting a grading company
+                      handleConditionSelect(type, '10');
+                    }
+                  }}
+                  className="min-w-[80px]">
+                  <Text>{type}</Text>
+                </Button>
+              );
+            })}
           </View>
         </View>
 
-        {/* Grade Selection (always visible, disabled if Raw or no condition selected) */}
-        <View>
-          <Text className="text-sm font-medium mb-2">Grade</Text>
-          <View className="flex-row flex-wrap gap-2">
-            {grades.map((grade) => (
-              <Button
-                key={grade}
-                variant={currentCondition?.grade === grade && !isRawSelected && !hasNoCondition ? 'default' : 'outline'}
-                size="sm"
-                disabled={isRawSelected || hasNoCondition}
-                onPress={() => {
-                  if (!isRawSelected && !hasNoCondition && currentCondition?.type) {
-                    handleConditionSelect(currentCondition.type, grade);
-                  }
-                }}
-                className="min-w-[50px]">
-                <Text>{grade}</Text>
-              </Button>
-            ))}
+        {/* Raw Condition Selection (shown when Raw is selected) */}
+        {isRawSelected && (
+          <View>
+            <Text className="text-sm font-medium mb-2">Card Condition</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {rawConditions.map((rawCond) => (
+                <Button
+                  key={rawCond.value}
+                  variant={currentCondition?.rawCondition === rawCond.value ? 'default' : 'outline'}
+                  size="sm"
+                  onPress={() => {
+                    handleConditionSelect('Raw', undefined, rawCond.value);
+                  }}
+                  className="min-w-[100px]">
+                  <Text>{rawCond.label}</Text>
+                </Button>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
+
+        {/* Grade Selection (shown when PSA is selected, disabled if Raw or no condition selected) */}
+        {!isRawSelected && (
+          <View>
+            <Text className="text-sm font-medium mb-2">Grade</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {grades.map((grade) => (
+                <Button
+                  key={grade}
+                  variant={currentCondition?.grade === grade && !hasNoCondition ? 'default' : 'outline'}
+                  size="sm"
+                  disabled={hasNoCondition}
+                  onPress={() => {
+                    if (!hasNoCondition && currentCondition?.type) {
+                      handleConditionSelect(currentCondition.type, grade);
+                    }
+                  }}
+                  className="min-w-[50px]">
+                  <Text>{grade}</Text>
+                </Button>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
     );
   };
@@ -189,51 +228,36 @@ export default function SubmitPartBScreen() {
     const cardWidth = width - 48; // Full width minus padding
     const isActive = index === currentIndex;
 
+    if (!item) {
+      return null;
+    }
+
     return (
       <View
         style={{ width: cardWidth }}
         className={`px-6 ${isActive ? 'opacity-100' : 'opacity-50'}`}>
         <View className="items-center justify-center">
           <Image
-            source={{ uri: item.images.large || item.images.small }}
+            source={{ uri: item.images?.large || item.images?.small || '' }}
             style={{ width: cardWidth * 0.65, height: cardWidth * 0.91 }}
             resizeMode="contain"
           />
-          <Text className="text-lg font-semibold text-center mt-3 mb-1">{item.name}</Text>
-          <Text className="text-sm text-muted-foreground text-center">{item.set.name}</Text>
+          <Text className="text-lg font-semibold text-center mt-3 mb-1">{item.name || 'Unknown Card'}</Text>
+          <Text className="text-sm text-muted-foreground text-center">{item.set?.name || ''}</Text>
         </View>
       </View>
     );
   };
 
-  // Market price - fetch from API
-  const [marketPrice, setMarketPrice] = useState<string>('Loading...');
-  const [isLoadingPrice, setIsLoadingPrice] = useState(false);
-
-  // Fetch market price for current card
-  useEffect(() => {
-    if (!currentCard) {
-      setMarketPrice('N/A');
-      return;
+  // Format market price for display
+  const formatMarketPrice = (price: number | null | undefined): string => {
+    if (price === null || price === undefined) {
+      return 'N/A';
     }
+    return `$${price.toFixed(2)}`;
+  };
 
-    setIsLoadingPrice(true);
-    // TODO: Replace with actual pricing API (e.g., TCGPlayer, eBay, or your own backend)
-    // For now, using Pokemon TCG API which doesn't provide prices, so showing placeholder
-    // You would need to integrate with a pricing service like:
-    // - TCGPlayer API (requires API key)
-    // - eBay API (for sold listings)
-    // - Your own backend that aggregates pricing data
-    
-    // Simulate API call delay
-    const timer = setTimeout(() => {
-      // Price API not yet provided - return NaN
-      setMarketPrice('NaN');
-      setIsLoadingPrice(false);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [currentCard]);
+  const marketPrice = formatMarketPrice(currentCard?.market_price);
 
   return (
     <>
@@ -393,6 +417,7 @@ export default function SubmitPartBScreen() {
                     condition: condition ? {
                       type: condition.type,
                       grade: condition.grade,
+                      rawCondition: condition.rawCondition,
                     } : null,
                   };
                 });

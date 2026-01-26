@@ -5,7 +5,7 @@ from sqlmodel import SQLModel
 from typing import Optional
 from datetime import datetime
 from app.database import get_session
-from app.models import Wallet
+from app.models import Wallet, Transaction, TransactionType
 from app.auth import get_user_id_from_token
 
 router = APIRouter(prefix="/wallet", tags=["wallet"])
@@ -63,6 +63,17 @@ async def deposit(
     wallet.balance += request.amount
     wallet.updated_at = datetime.utcnow()
     
+    # Create transaction record
+    transaction = Transaction(
+        user_id=user_id,
+        transaction_type=TransactionType.DEPOSIT,
+        description=f"Deposited ${request.amount:.2f}",
+        amount=request.amount,
+        balance_after=wallet.balance,
+        transaction_data={"amount": request.amount}
+    )
+    session.add(transaction)
+    
     await session.commit()
     await session.refresh(wallet)
     return {"balance": wallet.balance}
@@ -85,6 +96,17 @@ async def withdraw(
     
     wallet.balance -= request.amount
     wallet.updated_at = datetime.utcnow()
+    
+    # Create transaction record
+    transaction = Transaction(
+        user_id=user_id,
+        transaction_type=TransactionType.WITHDRAW,
+        description=f"Withdrew ${request.amount:.2f}",
+        amount=-request.amount,  # Negative for withdrawal
+        balance_after=wallet.balance,
+        transaction_data={"amount": request.amount}
+    )
+    session.add(transaction)
     
     await session.commit()
     await session.refresh(wallet)

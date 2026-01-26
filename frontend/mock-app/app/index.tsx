@@ -20,11 +20,12 @@ export default function Index() {
     // Prevent multiple redirects
     if (hasRedirected.current) return;
 
-    // If user is logged in, redirect to tabs (home)
+    // If user is logged in, redirect to discover screen (root of tabs)
     if (isLoggedIn) {
-      if (segments[0] !== '(tabs)') {
+      // Redirect if not in tabs or not on discover screen
+      if (segments[0] !== '(tabs)' || segments[1] !== 'discover') {
         hasRedirected.current = true;
-        router.replace('/(tabs)');
+        router.replace('/(tabs)/discover');
       }
     } else {
       // If user is not logged in, redirect to welcome

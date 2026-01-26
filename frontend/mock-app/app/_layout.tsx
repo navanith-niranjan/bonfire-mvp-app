@@ -10,6 +10,7 @@ import { useFonts } from 'expo-font';
 import AuthProvider from '@/providers/auth-provider';
 import { WalletProvider } from '@/providers/wallet-provider';
 import { InventoryProvider } from '@/providers/inventory-provider';
+import { TransactionsProvider } from '@/providers/transactions-provider';
 import { SplashScreenController } from '@/components/splash-screen-controller';
 import { useAuthContext } from '@/hooks/use-auth-context';
 
@@ -51,6 +52,7 @@ function RootNavigator() {
       {/* Trade flow */}
       <Stack.Screen name="trade/deck" options={{ headerShown: false }} />
       <Stack.Screen name="trade/select-inventory" options={{ headerShown: false }} />
+      <Stack.Screen name="trade/success" options={{ headerShown: false }} />
       
       {/* Fallback */}
       <Stack.Screen name="+not-found" />
@@ -81,10 +83,12 @@ export default function RootLayout() {
       <AuthProvider>
         <WalletProvider>
           <InventoryProvider>
-            <SplashScreenController />
-            <RootNavigator />
-            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-            <PortalHost />
+            <TransactionsProvider>
+              <SplashScreenController />
+              <RootNavigator />
+              <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+              <PortalHost />
+            </TransactionsProvider>
           </InventoryProvider>
         </WalletProvider>
       </AuthProvider>

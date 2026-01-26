@@ -16,6 +16,10 @@ class Settings:
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
     
+    # Pokemon TCG API Configuration
+    POKEMON_TCG_API_URL: str = os.getenv("POKEMON_TCG_API_URL", "")
+    POKEMON_TCG_API_KEY: str = os.getenv("POKEMON_TCG_API_KEY", "")
+    
     # App Configuration
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"

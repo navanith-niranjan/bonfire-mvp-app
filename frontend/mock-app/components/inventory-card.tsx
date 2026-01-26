@@ -74,10 +74,15 @@ export function InventoryCard({
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
-  // Get market price (placeholder - would fetch from API)
-  const getMarketPrice = useCallback((card: UserCard) => {
-    // Price API not yet provided - return NaN
-    return 'NaN';
+  // Get market price from item_data
+  // TODO: In future, fetch condition/grade-specific prices from pricing API
+  // Different conditions (NM, LP, MP, HP, D) and grades (PSA 10, 9, etc.) have different market values
+  const getMarketPrice = useCallback((card: UserCard): string => {
+    const price = card.item_data?.market_price;
+    if (price === null || price === undefined || typeof price !== 'number') {
+      return 'N/A';
+    }
+    return `$${price.toFixed(2)}`;
   }, []);
 
   const toggleCardSelection = useCallback((cardId: number) => {

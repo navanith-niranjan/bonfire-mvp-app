@@ -28,7 +28,9 @@ type PokemonCard = {
   condition: {
     type: 'Raw' | 'PSA' | 'Beckett' | 'TAG';
     grade?: string;
+    rawCondition?: 'NM' | 'LP' | 'MP' | 'HP' | 'D';
   } | null;
+  market_price?: number | null;
 };
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -52,7 +54,22 @@ async function apiRequest(endpoint: string, method: string, token: string, body?
       let errorDetail = `HTTP ${response.status}`;
       try {
         const errorJson = await response.json();
-        errorDetail = errorJson.detail || JSON.stringify(errorJson);
+        // Handle different error response formats
+        if (typeof errorJson === 'string') {
+          errorDetail = errorJson;
+        } else if (errorJson.detail) {
+          // FastAPI validation errors have 'detail' field
+          if (Array.isArray(errorJson.detail)) {
+            // Validation errors are arrays of objects
+            errorDetail = errorJson.detail.map((err: any) => 
+              `${err.loc?.join('.')}: ${err.msg}`
+            ).join(', ');
+          } else {
+            errorDetail = String(errorJson.detail);
+          }
+        } else {
+          errorDetail = JSON.stringify(errorJson, null, 2);
+        }
       } catch {
         try {
           errorDetail = await response.text();
@@ -106,22 +123,48 @@ export default function SubmitPartCScreen() {
     try {
       // Prepare inventory items from selected cards
       const inventoryItems = selectedCards.map(card => {
-        const conditionStr = card.condition 
-          ? card.condition.type === 'Raw' 
-            ? 'Raw' 
-            : `${card.condition.type} ${card.condition.grade}`
-          : 'Raw';
+        // Format condition string for display
+        let conditionStr = 'Unknown';
+        if (card.condition) {
+          if (card.condition.type === 'Raw' && card.condition.rawCondition) {
+            // Map raw conditions to full names
+            const rawConditionMap: Record<string, string> = {
+              'NM': 'Near Mint',
+              'LP': 'Lightly Played',
+              'MP': 'Moderately Played',
+              'HP': 'Heavily Played',
+              'D': 'Damaged',
+            };
+            conditionStr = `Raw - ${rawConditionMap[card.condition.rawCondition] || card.condition.rawCondition}`;
+          } else if (card.condition.grade) {
+            conditionStr = `${card.condition.type} ${card.condition.grade}`;
+          } else {
+            conditionStr = card.condition.type;
+          }
+        }
+        
+        // Prepare item_data object
+        const itemData: Record<string, any> = {
+          // Store full condition structure for flexibility
+          condition: conditionStr, // Human-readable string
+          condition_type: card.condition?.type || null,
+          condition_grade: card.condition?.grade || null,
+          condition_raw: card.condition?.rawCondition || null, // NM, LP, MP, HP, D
+          set: card.set.name,
+        };
+        
+        // Only include market_price if it's a valid number
+        if (card.market_price !== null && card.market_price !== undefined && typeof card.market_price === 'number') {
+          itemData.market_price = card.market_price;
+        }
         
         return {
           name: card.name,
           image_url: card.images.large || card.images.small,
           collectible_type: 'card',
-          external_id: card.id,
+          external_id: String(card.id), // Convert to string (backend expects string)
           external_api: 'pokemontcg',
-          item_data: {
-            condition: conditionStr,
-            set: card.set.name,
-          },
+          item_data: itemData,
         };
       });
 

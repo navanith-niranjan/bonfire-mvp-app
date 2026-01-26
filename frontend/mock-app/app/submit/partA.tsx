@@ -8,9 +8,9 @@ import { Icon } from '@/components/ui/icon';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, ArrowRight, Plus, Minus, Camera } from 'lucide-react-native';
-import { useSmartCardSearch } from '@/hooks/use-smart-card-search';
+import { useCardSearch } from '@/hooks/use-card-search';
 import { SmartCardSearchInput } from '@/components/smart-card-search-input';
-import type { PokemonCard } from '@/lib/smart-card-search';
+import type { PokemonCard } from '@/types/card';
 
 const SCREEN_OPTIONS = {
   title: 'Select One or More Cards',
@@ -25,9 +25,9 @@ export default function SubmitPartAScreen() {
   const [selectedCards, setSelectedCards] = useState<Map<string, PokemonCard>>(new Map());
   const [isInitialLoad, setIsInitialLoad] = useState(true); // Track initial load
   
-  // Use the smart card search hook
-  const { searchQuery, setSearchQuery, cards, isSearching, clearSearch } = useSmartCardSearch({
-    debounceMs: 150,
+  // Use the card search hook
+  const { searchQuery, setSearchQuery, cards, isSearching, clearSearch } = useCardSearch({
+    debounceMs: 300,
     pageSize: 50,
   });
 
@@ -45,10 +45,11 @@ export default function SubmitPartAScreen() {
         const newCardQuantities = new Map<string, number>();
         
         existingCards.forEach(card => {
-          const cardId = card.id;
+          // Use id as the key (now it's a number from database)
+          const cardId = String(card.id);
           newSelectedCards.set(cardId, card);
           // Count how many instances of this card exist
-          const quantity = existingCards.filter((c: PokemonCard) => c.id === cardId).length;
+          const quantity = existingCards.filter((c: PokemonCard) => c.id === card.id).length;
           newCardQuantities.set(cardId, quantity);
         });
         
@@ -69,22 +70,23 @@ export default function SubmitPartAScreen() {
 
   // Toggle card selection - adds card with quantity 1 if not selected
   const toggleCardSelection = (card: PokemonCard) => {
+    const cardId = String(card.id);
     setCardQuantities(prev => {
       const newMap = new Map(prev);
-      if (newMap.has(card.id)) {
+      if (newMap.has(cardId)) {
         // If already selected, remove it
-        newMap.delete(card.id);
+        newMap.delete(cardId);
         setSelectedCards(prevCards => {
           const newMap = new Map(prevCards);
-          newMap.delete(card.id);
+          newMap.delete(cardId);
           return newMap;
         });
       } else {
         // If not selected, add with quantity 1
-        newMap.set(card.id, 1);
+        newMap.set(cardId, 1);
         setSelectedCards(prevCards => {
           const newMap = new Map(prevCards);
-          newMap.set(card.id, card);
+          newMap.set(cardId, card);
           return newMap;
         });
       }
@@ -93,30 +95,32 @@ export default function SubmitPartAScreen() {
   };
 
   // Increment card quantity
-  const incrementQuantity = useCallback((cardId: string) => {
+  const incrementQuantity = useCallback((cardId: string | number) => {
+    const id = String(cardId);
     setCardQuantities(prev => {
       const newMap = new Map(prev);
-      const currentQty = newMap.get(cardId) || 0;
-      newMap.set(cardId, currentQty + 1);
+      const currentQty = newMap.get(id) || 0;
+      newMap.set(id, currentQty + 1);
       return newMap;
     });
   }, []);
 
   // Decrement card quantity (removes if reaches 0)
-  const decrementQuantity = useCallback((cardId: string) => {
+  const decrementQuantity = useCallback((cardId: string | number) => {
+    const id = String(cardId);
     setCardQuantities(prev => {
       const newMap = new Map(prev);
-      const currentQty = newMap.get(cardId) || 0;
+      const currentQty = newMap.get(id) || 0;
       if (currentQty <= 1) {
         // Remove if quantity would be 0
-        newMap.delete(cardId);
+        newMap.delete(id);
         setSelectedCards(prevCards => {
           const newMap = new Map(prevCards);
-          newMap.delete(cardId);
+          newMap.delete(id);
           return newMap;
         });
       } else {
-        newMap.set(cardId, currentQty - 1);
+        newMap.set(id, currentQty - 1);
       }
       return newMap;
     });
@@ -130,18 +134,18 @@ export default function SubmitPartAScreen() {
     
     // Always include selected cards that might not be in current results
     const selectedCardsArray = Array.from(selectedCards.values());
-    const existingIds = new Set(cards.map(c => c.id));
+    const existingIds = new Set(cards.map(c => String(c.id)));
     // Add selected cards that aren't already in the results
     selectedCardsArray.forEach(card => {
-      if (!existingIds.has(card.id)) {
+      if (!existingIds.has(String(card.id))) {
         displayCards.push(card);
       }
     });
     
     // Sort: selected first, then others
     return displayCards.sort((a, b) => {
-      const aSelected = cardQuantities.has(a.id);
-      const bSelected = cardQuantities.has(b.id);
+      const aSelected = cardQuantities.has(String(a.id));
+      const bSelected = cardQuantities.has(String(b.id));
       if (aSelected && !bSelected) return -1;
       if (!aSelected && bSelected) return 1;
       return 0;
@@ -270,7 +274,7 @@ export default function SubmitPartAScreen() {
               elevation: 8,
             }}>
             <Image
-              source={{ uri: item.images.small }}
+              source={{ uri: item.image_small || item.image_large || '' }}
               style={{ width: cardWidth, height: cardWidth * 1.4 }}
               resizeMode="cover"
             />
@@ -311,7 +315,8 @@ export default function SubmitPartAScreen() {
   });
 
   const renderCard = useCallback(({ item }: { item: PokemonCard }) => {
-    const quantity = cardQuantities.get(item.id) || 0;
+    const cardId = String(item.id);
+    const quantity = cardQuantities.get(cardId) || 0;
     return (
       <CardComponent
         item={item}
@@ -323,6 +328,9 @@ export default function SubmitPartAScreen() {
       />
     );
   }, [cardQuantities, cardWidth, incrementQuantity, decrementQuantity]);
+
+  // Check if this is for trading
+  const isTrading = params.source === 'trade';
 
   const ListHeader = useMemo(() => (
     <>
@@ -359,7 +367,10 @@ export default function SubmitPartAScreen() {
       {/* Description */}
       <View className="mb-6">
         <Text className="text-sm text-muted-foreground">
-          Search for the card you want to ship to BONFIRE. Once authenticated, digital trading will be available.
+          {isTrading 
+            ? "Search for the cards you want to receive in this trade."
+            : "Search for the card you want to ship to BONFIRE. Once authenticated, digital trading will be available."
+          }
         </Text>
       </View>
 
@@ -374,7 +385,7 @@ export default function SubmitPartAScreen() {
         />
       </View>
     </>
-  ), [searchQuery, handleBack, clearSearch, isSearching, setSearchQuery]);
+  ), [searchQuery, handleBack, clearSearch, isSearching, setSearchQuery, isTrading]);
 
 
   return (
@@ -388,7 +399,12 @@ export default function SubmitPartAScreen() {
           <FlatList
           data={displayData}
           renderItem={renderItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => {
+            if ('isPlaceholder' in item && item.isPlaceholder) {
+              return item.id;
+            }
+            return String((item as PokemonCard).id);
+          }}
           numColumns={3}
           ListHeaderComponent={ListHeader}
           ListEmptyComponent={
@@ -434,8 +450,19 @@ export default function SubmitPartAScreen() {
                     for (let i = 0; i < quantity; i++) {
                       selectedCardsData.push({
                         ...card,
-                        instanceId: `${cardId}-${i}`, // Unique ID for each instance
+                        instanceId: `${card.id}-${i}`, // Unique ID for each instance
                         quantity: 1, // Each instance has quantity 1
+                        // Ensure images structure is compatible with partB
+                        images: {
+                          small: card.image_small || '',
+                          large: card.image_large || '',
+                        },
+                        // Ensure set structure is compatible with partB
+                        set: {
+                          name: card.set_name || '',
+                        },
+                        // Pass market price
+                        market_price: card.market_price,
                       });
                     }
                   }

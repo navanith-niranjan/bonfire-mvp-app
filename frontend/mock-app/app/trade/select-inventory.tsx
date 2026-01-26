@@ -93,8 +93,20 @@ export default function SelectInventoryScreen() {
     });
   };
 
+  // Get market price from item_data
+  // TODO: In future, fetch condition/grade-specific prices from pricing API
+  // Different conditions (NM, LP, MP, HP, D) and grades (PSA 10, 9, etc.) have different market values
+  const getMarketPrice = (card: UserCard): string => {
+    const price = card.item_data?.market_price;
+    if (price === null || price === undefined || typeof price !== 'number') {
+      return 'N/A';
+    }
+    return `$${price.toFixed(2)}`;
+  };
+
   const renderCard = ({ item }: { item: UserCard }) => {
     const isSelected = selectedCardIds.has(item.id);
+    const marketPrice = getMarketPrice(item);
     
     return (
       <TouchableOpacity
@@ -130,7 +142,7 @@ export default function SelectInventoryScreen() {
             </Text>
           )}
           <Text className="text-xs text-center font-bold mt-1">
-            NaN
+            {marketPrice}
           </Text>
         </View>
       </TouchableOpacity>

@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { useColorScheme } from 'nativewind';
-import { Home, Compass, Vault, Clock } from 'lucide-react-native';
+import { Compass, Vault, Clock } from 'lucide-react-native';
 
 export default function TabsLayout() {
   const { colorScheme } = useColorScheme();
@@ -28,14 +28,6 @@ export default function TabsLayout() {
           fontWeight: '500',
         },
       }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
-          tabBarShowLabel: false,
-        }}
-      />
       <Tabs.Screen
         name="discover"
         options={{

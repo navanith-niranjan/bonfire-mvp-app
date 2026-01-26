@@ -25,11 +25,10 @@ engine = create_async_engine(
 
 # 2. Dependency: Get a Database Session
 # You will use this in every API route: `async def route(session: AsyncSession = Depends(get_session))`
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
 async def get_session() -> AsyncSession:
     """Get an async database session for SQLModel operations (FastAPI dependency)."""
-    async_session = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
     async with async_session() as session:
         yield session
 
@@ -40,6 +39,35 @@ async def init_db():
     """Initialize database tables (create tables if they don't exist)."""
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
+    
+    # Check if database is empty and sync if needed (non-blocking)
+    async with async_session() as session:
+        from sqlalchemy import select, func
+        from app.models import PokemonCard
+        
+        result = await session.execute(select(func.count(PokemonCard.id)))
+        count = result.scalar() or 0
+        
+        if count == 0:
+            print("📦 Database is empty - starting initial card sync in background...")
+            # Start sync in background (non-blocking)
+            import asyncio
+            asyncio.create_task(sync_cards_if_needed())
+        else:
+            print(f"✅ Database has {count} cards - skipping auto-sync")
+
+
+async def sync_cards_if_needed():
+    """Sync cards from Pokemon TCG API (runs in background)."""
+    try:
+        # Import sync function from script
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from scripts.sync_cards import sync_all_cards
+        await sync_all_cards()
+    except Exception as e:
+        print(f"❌ Error syncing cards: {e}")
 
 
 # Supabase client functions (for REST API operations)

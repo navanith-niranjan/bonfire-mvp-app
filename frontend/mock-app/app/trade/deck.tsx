@@ -16,18 +16,27 @@ import {
 } from '@/components/ui/dialog';
 import { X, Plus, ArrowUpDown, Edit2 } from 'lucide-react-native';
 import { useWallet } from '@/hooks/use-wallet';
+import { useInventory } from '@/hooks/use-inventory';
+import { useAuthContext } from '@/hooks/use-auth-context';
+import { useTransactions } from '@/hooks/use-transactions';
 import type { UserCard } from '@/types/inventory';
+import { ActivityIndicator } from 'react-native';
 
 const SCREEN_OPTIONS = {
   title: 'Trade Deck',
   headerShown: false,
 };
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
 export default function TradeDeckScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { width, height } = useWindowDimensions();
-  const { balance, deposit } = useWallet();
+  const { balance, deposit, refreshBalance } = useWallet();
+  const { refreshInventory } = useInventory();
+  const { session } = useAuthContext();
+  const { refreshTransactions } = useTransactions();
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [giveMoneyAmount, setGiveMoneyAmount] = useState('');
   const [moneyError, setMoneyError] = useState('');
@@ -36,6 +45,7 @@ export default function TradeDeckScreen() {
   const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
   const [giveCardIndex, setGiveCardIndex] = useState(0);
   const [receiveCardIndex, setReceiveCardIndex] = useState(0);
+  const [isProcessingTrade, setIsProcessingTrade] = useState(false);
   
   const giveFlatListRef = useRef<FlatList>(null);
   const receiveFlatListRef = useRef<FlatList>(null);
@@ -89,6 +99,18 @@ export default function TradeDeckScreen() {
             uniqueId = index + 3000000; // Use large offset for fallback
           }
           
+          // Prepare item_data object
+          const itemData: Record<string, any> = {
+            condition: conditionString,
+            set: card.set?.name || null,
+            grade: card.condition?.grade || null,
+          };
+          
+          // Include market_price if available (from partB)
+          if (card.market_price !== null && card.market_price !== undefined && typeof card.market_price === 'number') {
+            itemData.market_price = card.market_price;
+          }
+          
           return {
             id: uniqueId,
             user_id: '',
@@ -98,11 +120,7 @@ export default function TradeDeckScreen() {
             collectible_type: 'pokemon',
             external_id: card.id || null,
             external_api: 'pokemon-tcg',
-            item_data: {
-              condition: conditionString,
-              set: card.set?.name || null,
-              grade: card.condition?.grade || null,
-            },
+            item_data: itemData,
             submitted_at: null,
             vaulted_at: null,
             created_at: null,
@@ -115,25 +133,29 @@ export default function TradeDeckScreen() {
     return [];
   }, [params.receiveCards]);
 
-  // Get card price (placeholder - would fetch from API in production)
+  // Get card price from item_data
+  // TODO: In future, fetch condition/grade-specific prices from pricing API
+  // Different conditions (NM, LP, MP, HP, D) and grades (PSA 10, 9, etc.) have different market values
   const getCardPrice = (card: UserCard): number => {
-    // Check if price exists in item_data
+    // Check if market_price exists in item_data (stored when card was submitted)
+    if (card.item_data?.market_price && typeof card.item_data.market_price === 'number') {
+      return card.item_data.market_price;
+    }
+    // Fallback: check legacy 'price' field
     if (card.item_data?.price && typeof card.item_data.price === 'number') {
       return card.item_data.price;
     }
-    // Price API not yet provided - return NaN
+    // No price available
     return NaN;
   };
 
-  // Calculate totals
-  const giveTotal = useMemo(() => {
-    const cardsTotal = selectedCards.reduce((sum, card) => {
+  // Calculate card totals (without money)
+  const cardsTotal = useMemo(() => {
+    return selectedCards.reduce((sum, card) => {
       const price = getCardPrice(card);
       return sum + (isNaN(price) ? 0 : price);
     }, 0);
-    const moneyTotal = parseFloat(giveMoneyAmount) || 0;
-    return cardsTotal + moneyTotal;
-  }, [selectedCards, giveMoneyAmount]);
+  }, [selectedCards]);
 
   const receiveTotal = useMemo(() => {
     return receiveCards.reduce((sum, card) => {
@@ -141,6 +163,12 @@ export default function TradeDeckScreen() {
       return sum + (isNaN(price) ? 0 : price);
     }, 0);
   }, [receiveCards]);
+
+  // Calculate total including money
+  const giveTotal = useMemo(() => {
+    const moneyTotal = parseFloat(giveMoneyAmount) || 0;
+    return cardsTotal + moneyTotal;
+  }, [cardsTotal, giveMoneyAmount]);
 
   // Calculate spread
   const spread = useMemo(() => {
@@ -150,9 +178,10 @@ export default function TradeDeckScreen() {
     return percentage;
   }, [giveTotal, receiveTotal]);
 
-  // Check if spread is within acceptable range (-20% to +20%)
+  // Check if spread is within acceptable range (0% to -10%)
+  // Positive spread is not allowed, only 0% or negative up to -10%
   const isSpreadValid = useMemo(() => {
-    return spread >= -20 && spread <= 20;
+    return spread <= 0 && spread >= -10;
   }, [spread]);
 
   // Calculate cash to receive (when giveTotal > receiveTotal)
@@ -163,14 +192,40 @@ export default function TradeDeckScreen() {
     return 0;
   }, [giveTotal, receiveTotal]);
 
+  // Calculate required money based on card values only (not including entered money)
+  // This ensures the requirement stays constant as user types
+  const requiredMoney = useMemo(() => {
+    if (cardsTotal < receiveTotal) {
+      return receiveTotal - cardsTotal;
+    }
+    return 0;
+  }, [cardsTotal, receiveTotal]);
+
+  // Check if money is required and provided
+  const isMoneyRequirementMet = useMemo(() => {
+    if (requiredMoney === 0) return true; // No money required
+    const providedMoney = parseFloat(giveMoneyAmount) || 0;
+    return providedMoney >= requiredMoney;
+  }, [requiredMoney, giveMoneyAmount]);
+
   const handleCancel = () => {
     router.push('/(tabs)/vault');
   };
 
   const handleMoneyChange = (text: string) => {
     setGiveMoneyAmount(text);
-    const amount = parseFloat(text);
-    if (text && !isNaN(amount)) {
+    const amount = parseFloat(text) || 0;
+    
+    // Check if money is required
+    if (requiredMoney > 0) {
+      if (amount < requiredMoney) {
+        setMoneyError(`At least $${requiredMoney.toFixed(2)} required to complete this trade`);
+      } else if (amount > balance) {
+        setMoneyError(`Amount exceeds your balance of $${balance.toFixed(2)}`);
+      } else {
+        setMoneyError('');
+      }
+    } else if (text && !isNaN(amount)) {
       if (amount > balance) {
         setMoneyError(`Amount exceeds your balance of $${balance.toFixed(2)}`);
       } else {
@@ -196,6 +251,10 @@ export default function TradeDeckScreen() {
       await deposit(numAmount);
       setDepositAmount('');
       setDepositDialogOpen(false);
+      // Re-validate money input after deposit to clear any errors
+      if (giveMoneyAmount) {
+        handleMoneyChange(giveMoneyAmount);
+      }
     } catch (error) {
       console.error('Deposit error:', error);
     } finally {
@@ -203,10 +262,110 @@ export default function TradeDeckScreen() {
     }
   };
 
-  const handleTrade = () => {
-    if (!isConfirmed || selectedCards.length === 0) return;
-    // TODO: Implement trade logic
-    console.log('Trading cards:', selectedCards);
+  const handleTrade = async () => {
+    if (!isConfirmed || selectedCards.length === 0 || receiveCards.length === 0 || !isSpreadValid || !isMoneyRequirementMet) return;
+    if (!session?.access_token) {
+      console.error('Not authenticated');
+      return;
+    }
+    if (!API_URL) {
+      console.error('API URL not configured');
+      return;
+    }
+    
+    // Additional validation: ensure money requirement is met
+    if (requiredMoney > 0) {
+      const providedMoney = parseFloat(giveMoneyAmount) || 0;
+      if (providedMoney < requiredMoney) {
+        alert(`You must provide at least $${requiredMoney.toFixed(2)} to complete this trade.`);
+        return;
+      }
+    }
+
+    setIsProcessingTrade(true);
+    try {
+      // Prepare trade data
+      const tradeData = {
+        give_items: selectedCards.map(card => card.id),
+        receive_items: receiveCards.map(card => ({
+          external_id: card.external_id ? String(card.external_id) : null,
+          name: card.name,
+          image_url: card.image_url,
+          item_data: card.item_data,
+        })),
+        give_money: parseFloat(giveMoneyAmount) || 0,
+        receive_money: cashToReceive,
+      };
+
+      console.log('[Trade] Sending trade request:', JSON.stringify(tradeData, null, 2));
+
+      // Make API request
+      const response = await fetch(`${API_URL}/trade/swap`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(tradeData),
+      });
+
+      if (!response.ok) {
+        console.log(`[Trade] Error response status: ${response.status}`);
+        let errorDetail = `HTTP ${response.status}`;
+        try {
+          const errorJson = await response.json();
+          console.log('[Trade] Error response JSON:', errorJson);
+          // Handle FastAPI error format
+          if (errorJson.detail) {
+            // Check if detail is an array (validation errors)
+            if (Array.isArray(errorJson.detail)) {
+              errorDetail = errorJson.detail.map((err: any) => 
+                `${err.loc?.join('.')}: ${err.msg}`
+              ).join(', ');
+            } else {
+              errorDetail = String(errorJson.detail);
+            }
+          } else if (errorJson.message) {
+            errorDetail = String(errorJson.message);
+          } else {
+            errorDetail = JSON.stringify(errorJson, null, 2);
+          }
+        } catch (parseError) {
+          console.log('[Trade] Failed to parse error JSON:', parseError);
+          try {
+            const text = await response.text();
+            errorDetail = text || `HTTP ${response.status}`;
+          } catch {
+            errorDetail = `HTTP ${response.status}: Request failed`;
+          }
+        }
+        console.log('[Trade] Final error detail:', errorDetail);
+        throw new Error(errorDetail);
+      }
+
+      const result = await response.json();
+      console.log('Trade successful:', result);
+
+      // Refresh inventory, wallet, and transactions to get updated data
+      await Promise.all([
+        refreshInventory(),
+        refreshBalance(),
+        refreshTransactions(),
+      ]);
+
+      // Navigate to success screen
+      router.push('/trade/success');
+    } catch (error) {
+      console.error('Trade error:', error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : typeof error === 'string' 
+          ? error 
+          : 'Unknown error occurred';
+      alert(`Trade failed: ${errorMessage}`);
+    } finally {
+      setIsProcessingTrade(false);
+    }
   };
 
   // Card dimensions for left side - ensure full card is visible
@@ -264,7 +423,7 @@ export default function TradeDeckScreen() {
 
   const renderGiveCard = ({ item, index }: { item: UserCard; index: number }) => {
     const cardPrice = getCardPrice(item);
-    const displayPrice = isNaN(cardPrice) ? 'NaN' : `$${cardPrice.toFixed(2)}`;
+    const displayPrice = isNaN(cardPrice) ? 'N/A' : `$${cardPrice.toFixed(2)}`;
     
     return (
       <View style={{ width: containerWidth }} className="flex-row gap-4">
@@ -333,7 +492,7 @@ export default function TradeDeckScreen() {
 
   const renderReceiveCard = ({ item, index }: { item: UserCard; index: number }) => {
     const cardPrice = getCardPrice(item);
-    const displayPrice = isNaN(cardPrice) ? 'NaN' : `$${cardPrice.toFixed(2)}`;
+    const displayPrice = isNaN(cardPrice) ? 'N/A' : `$${cardPrice.toFixed(2)}`;
     
     return (
       <View style={{ width: containerWidth }} className="flex-row gap-4">
@@ -521,7 +680,7 @@ export default function TradeDeckScreen() {
 
               {/* Money Input for You Give - Below indicator */}
               <View className="mt-4">
-                <Text className="text-xs text-muted-foreground mb-1">Add Money (Optional)</Text>
+                <Text className="text-xs text-muted-foreground mb-1">Add Money</Text>
                 <View className="flex-row items-center gap-2">
                   <Text className="text-sm">$</Text>
                   <Input
@@ -532,9 +691,17 @@ export default function TradeDeckScreen() {
                     className="flex-1 h-9"
                   />
                 </View>
-                {moneyError ? (
+                {requiredMoney > 0 && !isMoneyRequirementMet && (
+                  <Text className="text-xs text-red-500 mt-1">
+                    Required: ${requiredMoney.toFixed(2)} to complete this trade
+                  </Text>
+                )}
+                {moneyError && requiredMoney === 0 && (
                   <Text className="text-xs text-red-500 mt-1">{moneyError}</Text>
-                ) : null}
+                )}
+                {moneyError && requiredMoney > 0 && isMoneyRequirementMet && (
+                  <Text className="text-xs text-red-500 mt-1">{moneyError}</Text>
+                )}
               </View>
             </View>
           </View>
@@ -674,6 +841,17 @@ export default function TradeDeckScreen() {
                 ${cashToReceive.toFixed(2)}
               </Text>
             </View>
+            {!isSpreadValid && giveTotal > 0 && receiveTotal > 0 && (
+              <View className="mt-1">
+                <Text className="text-xs text-red-500">
+                  {spread > 0 
+                    ? 'Spread cannot be positive' 
+                    : spread < -20 
+                    ? 'Spread is beyond acceptable range (less than -20%)'
+                    : 'Spread must be between 0% and -10%'}
+                </Text>
+              </View>
+            )}
           </View>
           
           <View className="items-center gap-4">
@@ -686,17 +864,10 @@ export default function TradeDeckScreen() {
                 I confirm this trade and understand the terms
               </Text>
             </View>
-            {!isSpreadValid && giveTotal > 0 && receiveTotal > 0 && (
-              <View className="mb-3 p-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
-                <Text className="text-xs text-yellow-500 text-center">
-                  Spread must be within ±20%. Current: {spread >= 0 ? '+' : ''}{spread.toFixed(2)}%
-                </Text>
-              </View>
-            )}
             <Button
               className="w-full"
               variant="default"
-              disabled={!isConfirmed || selectedCards.length === 0 || receiveCards.length === 0 || !isSpreadValid}
+              disabled={!isConfirmed || selectedCards.length === 0 || receiveCards.length === 0 || !isSpreadValid || !isMoneyRequirementMet || isProcessingTrade}
               onPress={handleTrade}
               style={{
                 shadowColor: '#000',
@@ -705,7 +876,14 @@ export default function TradeDeckScreen() {
                 shadowRadius: 8,
                 elevation: 8,
               }}>
-              <Text>Confirm Exchange</Text>
+              {isProcessingTrade ? (
+                <View className="flex-row items-center gap-2">
+                  <ActivityIndicator size="small" color="white" />
+                  <Text>Processing...</Text>
+                </View>
+              ) : (
+                <Text>Confirm Exchange</Text>
+              )}
             </Button>
           </View>
         </View>
@@ -759,6 +937,22 @@ export default function TradeDeckScreen() {
           </TouchableWithoutFeedback>
         </DialogContent>
       </Dialog>
+
+      {/* Loading Overlay */}
+      {isProcessingTrade && (
+        <View 
+          className="absolute inset-0 bg-black/70 items-center justify-center z-50"
+          style={{ elevation: 20 }}>
+          <View className="bg-background rounded-lg p-6 items-center gap-4 min-w-[200px]">
+            <ActivityIndicator size="large" color="#3b82f6" />
+            <Text className="text-lg font-semibold text-foreground">Processing Trade...</Text>
+            <Text className="text-sm text-muted-foreground text-center">
+              Please wait while we complete your exchange
+            </Text>
+          </View>
+        </View>
+      )}
+
     </>
   );
 }
