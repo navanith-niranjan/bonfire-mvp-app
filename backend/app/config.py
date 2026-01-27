@@ -23,6 +23,11 @@ class Settings:
     # App Configuration
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
+    
+    # Resend Email Configuration
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
+    RESEND_TEMPLATE_ID: str = os.getenv("RESEND_TEMPLATE_ID", "")
+    RESEND_FROM_EMAIL: str = os.getenv("RESEND_FROM_EMAIL", "")
 
 
 settings = Settings()

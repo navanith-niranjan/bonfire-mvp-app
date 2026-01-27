@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field, Column
-from sqlalchemy import Enum, JSON, Numeric, ARRAY, Text
+from sqlalchemy import Enum, JSON, Numeric, ARRAY, Text, String
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import enum
@@ -176,6 +176,8 @@ class TransactionType(str, enum.Enum):
     TRADE = "trade"  # Trade/swap transaction
     DEPOSIT = "deposit"  # Wallet deposit
     WITHDRAW = "withdraw"  # Wallet withdrawal
+    SUBMIT = "submit"  # Card/item submission to inventory
+    REDEEM = "redeem"  # Card/item redemption (removal from inventory)
 
 
 class Transaction(SQLModel, table=True):
@@ -186,7 +188,7 @@ class Transaction(SQLModel, table=True):
     user_id: str = Field(index=True, description="Supabase user ID")
     
     transaction_type: TransactionType = Field(
-        sa_column=Column(Enum(TransactionType)),
+        sa_column=Column(String(20)),
         description="Type of transaction"
     )
     

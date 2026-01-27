@@ -4,7 +4,7 @@ import { useAuthContext } from '@/hooks/use-auth-context';
 export type Transaction = {
   id: number;
   user_id: string;
-  transaction_type: 'trade' | 'deposit' | 'withdraw';
+  transaction_type: 'trade' | 'deposit' | 'withdraw' | 'submit' | 'redeem';
   description: string;
   amount: number;
   balance_after: number;

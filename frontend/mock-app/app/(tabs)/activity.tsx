@@ -4,9 +4,18 @@ import { useTransactions } from '@/hooks/use-transactions';
 import { ActivityIndicator } from 'react-native';
 import { ArrowUpRight, ArrowDownRight, ArrowLeftRight } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 
 export default function ActivityScreen() {
   const { transactions, isLoading, refreshTransactions } = useTransactions();
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      refreshTransactions();
+    }, [refreshTransactions])
+  );
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -36,16 +45,20 @@ export default function ActivityScreen() {
         return ArrowDownRight;
       case 'trade':
         return ArrowLeftRight;
+      case 'submit':
+        return ArrowUpRight; // Use same icon as deposit for submissions
+      case 'redeem':
+        return ArrowDownRight; // Use same icon as withdraw for redemptions
       default:
         return ArrowLeftRight;
     }
   };
 
   const getTransactionColor = (type: string, amount: number) => {
-    if (type === 'deposit' || (type === 'trade' && amount > 0)) {
+    if (type === 'deposit' || type === 'submit' || (type === 'trade' && amount > 0)) {
       return 'text-green-500';
     }
-    if (type === 'withdraw' || (type === 'trade' && amount < 0)) {
+    if (type === 'withdraw' || type === 'redeem' || (type === 'trade' && amount < 0)) {
       return 'text-red-500';
     }
     return 'text-foreground';
@@ -97,18 +110,18 @@ export default function ActivityScreen() {
                 <View className="flex-row items-start justify-between">
                   <View className="flex-row items-start flex-1 gap-3">
                     <View className={`rounded-full p-2 ${
-                      transaction.transaction_type === 'deposit' || (transaction.transaction_type === 'trade' && transaction.amount > 0)
+                      transaction.transaction_type === 'deposit' || transaction.transaction_type === 'submit' || (transaction.transaction_type === 'trade' && transaction.amount > 0)
                         ? 'bg-green-500/20'
-                        : transaction.transaction_type === 'withdraw' || (transaction.transaction_type === 'trade' && transaction.amount < 0)
+                        : transaction.transaction_type === 'withdraw' || transaction.transaction_type === 'redeem' || (transaction.transaction_type === 'trade' && transaction.amount < 0)
                         ? 'bg-red-500/20'
                         : 'bg-muted'
                     }`}>
                       <Icon
                         as={IconComponent}
                         className={`size-5 ${
-                          transaction.transaction_type === 'deposit' || (transaction.transaction_type === 'trade' && transaction.amount > 0)
+                          transaction.transaction_type === 'deposit' || transaction.transaction_type === 'submit' || (transaction.transaction_type === 'trade' && transaction.amount > 0)
                             ? 'text-green-500'
-                            : transaction.transaction_type === 'withdraw' || (transaction.transaction_type === 'trade' && transaction.amount < 0)
+                            : transaction.transaction_type === 'withdraw' || transaction.transaction_type === 'redeem' || (transaction.transaction_type === 'trade' && transaction.amount < 0)
                             ? 'text-red-500'
                             : 'text-foreground'
                         }`}
@@ -160,6 +173,56 @@ export default function ActivityScreen() {
                                   {card.value > 0 && (
                                     <Text className="text-xs text-muted-foreground ml-2">
                                       ${card.value.toFixed(2)}
+                                    </Text>
+                                  )}
+                                </View>
+                              ))}
+                            </View>
+                          )}
+                        </View>
+                      )}
+                      
+                      {/* Display card details for submissions */}
+                      {transaction.transaction_type === 'submit' && transaction.transaction_data && (
+                        <View className="mt-3">
+                          {transaction.transaction_data.items_details && 
+                           Array.isArray(transaction.transaction_data.items_details) &&
+                           transaction.transaction_data.items_details.length > 0 && (
+                            <View>
+                              <Text className="text-xs text-muted-foreground mb-1">Items Submitted:</Text>
+                              {transaction.transaction_data.items_details.map((item: any, idx: number) => (
+                                <View key={idx} className="flex-row items-center justify-between mb-1">
+                                  <Text className="text-xs text-foreground flex-1" numberOfLines={1}>
+                                    {item.name || 'Unknown Item'}
+                                  </Text>
+                                  {item.value > 0 && (
+                                    <Text className="text-xs text-muted-foreground ml-2">
+                                      ${item.value.toFixed(2)}
+                                    </Text>
+                                  )}
+                                </View>
+                              ))}
+                            </View>
+                          )}
+                        </View>
+                      )}
+                      
+                      {/* Display card details for redemptions */}
+                      {transaction.transaction_type === 'redeem' && transaction.transaction_data && (
+                        <View className="mt-3">
+                          {transaction.transaction_data.items_details && 
+                           Array.isArray(transaction.transaction_data.items_details) &&
+                           transaction.transaction_data.items_details.length > 0 && (
+                            <View>
+                              <Text className="text-xs text-muted-foreground mb-1">Items Redeemed:</Text>
+                              {transaction.transaction_data.items_details.map((item: any, idx: number) => (
+                                <View key={idx} className="flex-row items-center justify-between mb-1">
+                                  <Text className="text-xs text-foreground flex-1" numberOfLines={1}>
+                                    {item.name || 'Unknown Item'}
+                                  </Text>
+                                  {item.value > 0 && (
+                                    <Text className="text-xs text-muted-foreground ml-2">
+                                      ${item.value.toFixed(2)}
                                     </Text>
                                   )}
                                 </View>

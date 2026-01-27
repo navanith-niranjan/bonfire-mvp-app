@@ -120,3 +120,41 @@ def get_user_id_from_token(token: str) -> str:
     decoded = decode_jwt_token(token)
     return decoded.get("sub", "")
 
+
+def get_user_email_from_token(token: str) -> Optional[str]:
+    """
+    Extract user email from JWT token.
+    
+    Args:
+        token: The JWT token string
+        
+    Returns:
+        User email address, or None if not found
+    """
+    decoded = decode_jwt_token(token)
+    return decoded.get("email")
+
+
+def get_user_name_from_token(token: str) -> Optional[str]:
+    """
+    Extract user name from JWT token.
+    Falls back to email username if name is not available.
+    
+    Args:
+        token: The JWT token string
+        
+    Returns:
+        User name, email username, or None
+    """
+    decoded = decode_jwt_token(token)
+    # Try to get name from various possible claims
+    name = decoded.get("name") or decoded.get("full_name") or decoded.get("user_metadata", {}).get("name")
+    
+    # If no name, try to extract username from email
+    if not name:
+        email = decoded.get("email", "")
+        if email:
+            name = email.split("@")[0]
+    
+    return name
+

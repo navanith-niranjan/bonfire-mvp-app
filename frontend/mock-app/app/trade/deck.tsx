@@ -73,15 +73,25 @@ export default function TradeDeckScreen() {
           let conditionString: string | null = null;
           if (card.condition) {
             if (typeof card.condition === 'object' && card.condition.type) {
-              // Format: "PSA 10" or "Raw" or "Beckett 9.5"
-              if (card.condition.type === 'Raw') {
-                conditionString = 'Raw';
+              // Format: "PSA 10" or "Raw - Near Mint" or "Beckett 9.5"
+              if (card.condition.type === 'Raw' && card.condition.rawCondition) {
+                // Map raw conditions to full names
+                const rawConditionMap: Record<string, string> = {
+                  'NM': 'Near Mint',
+                  'LP': 'Lightly Played',
+                  'MP': 'Moderately Played',
+                  'HP': 'Heavily Played',
+                  'D': 'Damaged',
+                };
+                const rawConditionName = rawConditionMap[card.condition.rawCondition] || card.condition.rawCondition;
+                conditionString = `Raw - ${rawConditionName}`;
               } else if (card.condition.grade) {
                 conditionString = `${card.condition.type} ${card.condition.grade}`;
               } else {
                 conditionString = card.condition.type;
               }
             } else if (typeof card.condition === 'string') {
+              // If it's already a string (like "Raw - Near Mint"), use it as-is
               conditionString = card.condition;
             }
           }

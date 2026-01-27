@@ -380,7 +380,7 @@ export default function SubmitPartAScreen() {
           value={searchQuery}
           onChangeText={setSearchQuery}
           onClear={clearSearch}
-          placeholder="Lugia V Alt Art"
+          placeholder="Lugia V"
           isSearching={isSearching}
         />
       </View>
