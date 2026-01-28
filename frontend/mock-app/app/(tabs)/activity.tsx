@@ -5,15 +5,18 @@ import { ActivityIndicator } from 'react-native';
 import { ArrowUpRight, ArrowDownRight, ArrowLeftRight } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 
 export default function ActivityScreen() {
   const { transactions, isLoading, refreshTransactions } = useTransactions();
+  const scrollViewRef = useRef<ScrollView>(null);
 
-  // Auto-refresh when screen comes into focus
+  // Auto-refresh when screen comes into focus and reset scroll position
   useFocusEffect(
     useCallback(() => {
       refreshTransactions();
+      // Reset scroll position to top when screen comes into focus
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
     }, [refreshTransactions])
   );
 
@@ -86,6 +89,7 @@ export default function ActivityScreen() {
         </View>
       ) : (
         <ScrollView
+          ref={scrollViewRef}
           className="flex-1 px-6"
           contentContainerStyle={{ paddingBottom: 20 }}
           refreshControl={

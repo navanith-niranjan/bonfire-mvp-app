@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { X, Plus, ArrowUpDown, Edit2 } from 'lucide-react-native';
 import { useWallet } from '@/hooks/use-wallet';
+import { BalanceDisplay } from '@/components/balance-display';
 import { useInventory } from '@/hooks/use-inventory';
 import { useAuthContext } from '@/hooks/use-auth-context';
 import { useTransactions } from '@/hooks/use-transactions';
@@ -33,16 +34,13 @@ export default function TradeDeckScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { width, height } = useWindowDimensions();
-  const { balance, deposit, refreshBalance } = useWallet();
+  const { balance, refreshBalance } = useWallet();
   const { refreshInventory } = useInventory();
   const { session } = useAuthContext();
   const { refreshTransactions } = useTransactions();
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [giveMoneyAmount, setGiveMoneyAmount] = useState('');
   const [moneyError, setMoneyError] = useState('');
-  const [depositDialogOpen, setDepositDialogOpen] = useState(false);
-  const [depositAmount, setDepositAmount] = useState('');
-  const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
   const [giveCardIndex, setGiveCardIndex] = useState(0);
   const [receiveCardIndex, setReceiveCardIndex] = useState(0);
   const [isProcessingTrade, setIsProcessingTrade] = useState(false);
@@ -243,32 +241,6 @@ export default function TradeDeckScreen() {
       }
     } else {
       setMoneyError('');
-    }
-  };
-
-  const resetAndClose = (setter: (open: boolean) => void) => {
-    setDepositAmount('');
-    setter(false);
-  };
-
-  const handleDepositSubmit = async () => {
-    const numAmount = parseFloat(depositAmount);
-    if (isNaN(numAmount) || numAmount <= 0) {
-      return;
-    }
-    setIsProcessingDeposit(true);
-    try {
-      await deposit(numAmount);
-      setDepositAmount('');
-      setDepositDialogOpen(false);
-      // Re-validate money input after deposit to clear any errors
-      if (giveMoneyAmount) {
-        handleMoneyChange(giveMoneyAmount);
-      }
-    } catch (error) {
-      console.error('Deposit error:', error);
-    } finally {
-      setIsProcessingDeposit(false);
     }
   };
 
@@ -585,20 +557,7 @@ export default function TradeDeckScreen() {
             className="rounded-full">
             <Icon as={X} className="size-5" />
           </Button>
-          <View className="items-end">
-            <Text className="text-sm text-muted-foreground">Your Balance</Text>
-            <View className="flex-row items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full border border-white bg-transparent"
-                style={{ width: 18, height: 18 }}
-                onPress={() => setDepositDialogOpen(true)}>
-                <Icon as={Plus} className="size-2.5" />
-              </Button>
-              <Text className="text-lg font-bold">${balance.toFixed(2)}</Text>
-            </View>
-          </View>
+          <BalanceDisplay />
         </View>
 
         {/* Main Content */}
@@ -899,54 +858,6 @@ export default function TradeDeckScreen() {
         </View>
 
       </View>
-
-      {/* Deposit Dialog */}
-      <Dialog open={depositDialogOpen} onOpenChange={(open) => {
-        if (!open) {
-          Keyboard.dismiss();
-          resetAndClose(setDepositDialogOpen);
-        } else {
-          setDepositDialogOpen(open);
-        }
-      }}>
-        <DialogContent>
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-            <View>
-              <DialogHeader>
-                <DialogTitle>Deposit Funds</DialogTitle>
-                <DialogDescription>
-                  Enter the amount you want to deposit to your wallet.
-                </DialogDescription>
-              </DialogHeader>
-              <View className="gap-4">
-                <View className="gap-2">
-                  <Text className="text-sm font-medium">Amount ($)</Text>
-                  <Input
-                    placeholder="0.00"
-                    value={depositAmount}
-                    onChangeText={setDepositAmount}
-                    keyboardType="decimal-pad"
-                    autoFocus
-                  />
-                </View>
-                <View className="bg-muted/50 rounded-md p-3">
-                  <Text className="text-xs text-muted-foreground text-center">
-                    ⚠️ This is for demo purposes only. No real cash is being added to your account.
-                  </Text>
-                </View>
-              </View>
-              <DialogFooter>
-                <Button
-                  onPress={handleDepositSubmit}
-                  disabled={isProcessingDeposit || !depositAmount || parseFloat(depositAmount) <= 0}
-                  className="w-full">
-                  <Text>Deposit</Text>
-                </Button>
-              </DialogFooter>
-            </View>
-          </TouchableWithoutFeedback>
-        </DialogContent>
-      </Dialog>
 
       {/* Loading Overlay */}
       {isProcessingTrade && (
