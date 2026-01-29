@@ -238,7 +238,7 @@ export default function TradeDeckScreen() {
   };
 
   const handleTrade = async () => {
-    if (!isConfirmed || selectedCards.length === 0 || receiveCards.length === 0 || !isSpreadValid || !isMoneyRequirementMet) return;
+    if (!isConfirmed || receiveCards.length === 0 || !isSpreadValid || !isMoneyRequirementMet) return;
     if (!session?.access_token) {
       console.error('Not authenticated');
       return;
@@ -850,7 +850,7 @@ export default function TradeDeckScreen() {
             <Button
               className="w-full"
               variant="default"
-              disabled={!isConfirmed || selectedCards.length === 0 || receiveCards.length === 0 || !isSpreadValid || !isMoneyRequirementMet || isProcessingTrade}
+              disabled={!isConfirmed || receiveCards.length === 0 || !isSpreadValid || !isMoneyRequirementMet || isProcessingTrade}
               onPress={handleTrade}
               style={{
                 shadowColor: '#000',
