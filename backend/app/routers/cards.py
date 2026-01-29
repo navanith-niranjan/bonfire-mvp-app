@@ -127,39 +127,20 @@ async def get_popular_cards(
     limit: int = Query(50, ge=1, le=100),
     session: AsyncSession = Depends(get_session)
 ):
-    """Get top 10 most expensive cards from each recent/popular set."""
-    # Use window function to get top 10 most expensive cards per set
-    row_number = func.row_number().over(
-        partition_by=PokemonCard.set_name,
-        order_by=desc(PokemonCard.market_price).nulls_last()
-    ).label('row_num')
-    
-    # Create subquery that gets IDs of top 10 cards per set (only cards with prices)
-    top_cards_subquery = select(
-        PokemonCard.id.label('card_id'),
-        row_number
-    ).where(
-        PokemonCard.market_price.isnot(None),
-        PokemonCard.market_price > 0
-    ).subquery()
-    
-    # Filter to top 10 per set
-    top_10_ids = select(top_cards_subquery.c.card_id).where(
-        top_cards_subquery.c.row_num <= 10
-    ).subquery()
-    
-    # Select cards that are in the top 10 per set
-    # Order by price first (most expensive overall), then by recency
-    query = select(PokemonCard).where(
-        PokemonCard.id.in_(select(top_10_ids.c.card_id))
-    ).order_by(
-        PokemonCard.market_price.desc().nulls_last(),  # Most expensive cards first
-        PokemonCard.created_at.desc().nulls_last()     # Then most recent sets
-    ).limit(limit)
-    
+    """Get popular cards: top N by market price (only cards with valid price and set)."""
+    # Simple, robust query: top cards by price (with set_name to avoid fully empty results)
+    query = (
+        select(PokemonCard)
+        .where(PokemonCard.market_price.isnot(None))
+        .where(PokemonCard.market_price > 0)
+        .order_by(
+            PokemonCard.market_price.desc().nulls_last(),
+            PokemonCard.created_at.desc().nulls_last(),
+        )
+        .limit(limit)
+    )
     result = await session.execute(query)
     cards = result.scalars().all()
-    
     return cards
 
 

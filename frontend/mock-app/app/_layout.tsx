@@ -44,6 +44,7 @@ function RootNavigator() {
       
       {/* Main app with tabs - shown after login */}
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="search" options={{ headerShown: false }} />
       
             {/* Submit flow */}
             <Stack.Screen name="submit/partA" options={{ headerShown: false }} />

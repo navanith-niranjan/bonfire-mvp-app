@@ -39,7 +39,7 @@ export default function TradeDeckScreen() {
   const { refreshInventory } = useInventory();
   const { session } = useAuthContext();
   const { refreshTransactions } = useTransactions();
-  const { giveCards, setGiveCards, getReceiveCardsPayload, setReceiveCardsFromDeck } = useTrade();
+  const { giveCards, setGiveCards, getReceiveCardsPayload, setReceiveCardsFromDeck, clearCards } = useTrade();
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [giveMoneyAmount, setGiveMoneyAmount] = useState('');
   const [moneyError, setMoneyError] = useState('');
@@ -98,11 +98,13 @@ export default function TradeDeckScreen() {
       if (card.market_price !== null && card.market_price !== undefined && typeof card.market_price === 'number') {
         itemData.market_price = card.market_price;
       }
+      const imageUrl = card.images?.large || card.images?.small || card.image_large || card.image_small || null;
+      const imageUrlNormalized = typeof imageUrl === 'string' && imageUrl.trim() !== '' ? imageUrl : null;
       return {
         id: uniqueId,
         user_id: '',
         name: card.name || 'Unknown Card',
-        image_url: card.images?.large || card.images?.small || null,
+        image_url: imageUrlNormalized,
         status: 'trading' as const,
         collectible_type: 'pokemon',
         external_id: card.id ?? null,
@@ -176,7 +178,6 @@ export default function TradeDeckScreen() {
   }, [giveTotal, receiveTotal]);
 
   // Check if spread is within acceptable range (0% to -10%)
-  // Positive spread is not allowed, only 0% or negative up to -10%
   const isSpreadValid = useMemo(() => {
     return spread <= 0 && spread >= -10;
   }, [spread]);
@@ -205,8 +206,11 @@ export default function TradeDeckScreen() {
     return providedMoney >= requiredMoney;
   }, [requiredMoney, giveMoneyAmount]);
 
+  // Tab to return to when closing trade (discover, activity, or vault)
+  const returnTab = (params.returnTab as string) || 'discover';
+
   const handleCancel = () => {
-    router.replace('/(tabs)' as any);
+    router.replace(`/(tabs)/${returnTab}` as any);
   };
 
   const handleMoneyChange = (text: string) => {
@@ -324,6 +328,10 @@ export default function TradeDeckScreen() {
         refreshTransactions(),
       ]);
 
+      // Reset trade state so deck is empty when user returns
+      setGiveCards([]);
+      clearCards();
+
       // Navigate to success screen
       router.push('/trade/success');
     } catch (error) {
@@ -410,7 +418,7 @@ export default function TradeDeckScreen() {
               shadowRadius: 8,
               elevation: 8,
             }}>
-            {item.image_url ? (
+            {typeof item.image_url === 'string' && item.image_url.trim() !== '' ? (
               <Image
                 source={{ uri: item.image_url }}
                 style={{ width: cardWidth, height: cardHeight }}
@@ -479,7 +487,7 @@ export default function TradeDeckScreen() {
               shadowRadius: 8,
               elevation: 8,
             }}>
-            {item.image_url ? (
+            {typeof item.image_url === 'string' && item.image_url.trim() !== '' ? (
               <Image
                 source={{ uri: item.image_url }}
                 style={{ width: cardWidth, height: cardHeight }}
@@ -577,6 +585,7 @@ export default function TradeDeckScreen() {
                       router.push({
                         pathname: '/trade/select-inventory',
                         params: {
+                          returnTab,
                           cards: selectedCards.length > 0 ? JSON.stringify(selectedCards) : undefined,
                           receiveCards: receivePayload.length > 0 ? JSON.stringify(receivePayload) : undefined,
                         },
@@ -628,6 +637,7 @@ export default function TradeDeckScreen() {
                       router.push({
                         pathname: '/trade/select-inventory',
                         params: {
+                          returnTab,
                           receiveCards: receivePayload.length > 0 ? JSON.stringify(receivePayload) : undefined,
                         },
                       });
@@ -701,6 +711,7 @@ export default function TradeDeckScreen() {
                       router.push({
                         pathname: '/submit/partA',
                         params: {
+                          returnTab,
                           returnPath: '/trade/deck',
                           source: 'trade',
                           originalCards: selectedCards.length > 0 ? JSON.stringify(selectedCards) : undefined,
@@ -766,6 +777,7 @@ export default function TradeDeckScreen() {
                       router.push({
                         pathname: '/submit/partA',
                         params: {
+                          returnTab,
                           returnPath: '/trade/deck',
                           source: 'trade',
                           originalCards: selectedCards.length > 0 ? JSON.stringify(selectedCards) : undefined,
@@ -819,8 +831,6 @@ export default function TradeDeckScreen() {
                 <Text className="text-xs text-red-500">
                   {spread > 0 
                     ? 'Spread cannot be positive' 
-                    : spread < -20 
-                    ? 'Spread is beyond acceptable range (less than -20%)'
                     : 'Spread must be between 0% and -10%'}
                 </Text>
               </View>

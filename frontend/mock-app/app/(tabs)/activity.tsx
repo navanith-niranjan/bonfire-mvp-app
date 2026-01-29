@@ -254,7 +254,7 @@ export default function ActivityScreen() {
           })}
         </ScrollView>
       )}
-      <FloatingTradeButton />
+      <FloatingTradeButton returnTab="activity" />
     </View>
     </ScreenWrapper>
   );

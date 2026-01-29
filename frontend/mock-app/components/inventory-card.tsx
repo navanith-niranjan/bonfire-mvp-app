@@ -113,7 +113,7 @@ export function InventoryCard({
               shadowRadius: 8,
               elevation: 8,
             }}>
-            {item.image_url ? (
+            {typeof item.image_url === 'string' && item.image_url.trim() !== '' ? (
               <Image
                 source={{ uri: item.image_url }}
                 style={{ width: cardWidth, height: cardWidth * 1.4 }}

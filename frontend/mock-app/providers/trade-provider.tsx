@@ -45,17 +45,23 @@ export function TradeProvider({ children }: PropsWithChildren) {
         setPendingCards([]);
         return;
       }
-      const next: PendingTradeCard[] = arr.map((item: any) => ({
-        card: {
-          id: item.id,
-          name: item.name ?? '',
-          set_name: item.set?.name ?? item.set_name ?? null,
-          image_small: item.images?.small ?? null,
-          image_large: item.images?.large ?? null,
-          market_price: item.market_price ?? null,
-        } as PokemonCard,
-        condition: item.condition ?? { type: 'Raw' as const, rawCondition: 'NM' as const },
-      }));
+      const next: PendingTradeCard[] = arr.map((item: any) => {
+        const small = item.images?.small ?? item.image_small ?? null;
+        const large = item.images?.large ?? item.image_large ?? null;
+        const image_small = typeof small === 'string' && small.trim() !== '' ? small : null;
+        const image_large = typeof large === 'string' && large.trim() !== '' ? large : null;
+        return {
+          card: {
+            id: item.id,
+            name: item.name ?? '',
+            set_name: item.set?.name ?? item.set_name ?? null,
+            image_small: image_small ?? image_large,
+            image_large: image_large ?? image_small,
+            market_price: item.market_price ?? null,
+          } as PokemonCard,
+          condition: item.condition ?? { type: 'Raw' as const, rawCondition: 'NM' as const },
+        };
+      });
       setPendingCards(next);
     } catch {
       setPendingCards([]);
@@ -63,19 +69,25 @@ export function TradeProvider({ children }: PropsWithChildren) {
   }, []);
 
   const getReceiveCardsPayload = useCallback(() => {
-    return pendingCards.map(({ card, condition }) => ({
-      id: card.id,
-      name: card.name,
-      set: { name: card.set_name ?? '' },
-      set_name: card.set_name,
-      images: { small: card.image_small ?? '', large: card.image_large ?? '' },
-      market_price: card.market_price,
-      condition: {
-        type: condition.type,
-        grade: condition.grade,
-        rawCondition: condition.rawCondition,
-      },
-    }));
+    return pendingCards.map(({ card, condition }) => {
+      const small = card.image_small ?? '';
+      const large = card.image_large ?? '';
+      return {
+        id: card.id,
+        name: card.name,
+        set: { name: card.set_name ?? '' },
+        set_name: card.set_name,
+        images: { small: typeof small === 'string' ? small : '', large: typeof large === 'string' ? large : '' },
+        image_small: small,
+        image_large: large,
+        market_price: card.market_price,
+        condition: {
+          type: condition.type,
+          grade: condition.grade,
+          rawCondition: condition.rawCondition,
+        },
+      };
+    });
   }, [pendingCards]);
 
   const getGiveCards = useCallback(() => giveCards, [giveCards]);

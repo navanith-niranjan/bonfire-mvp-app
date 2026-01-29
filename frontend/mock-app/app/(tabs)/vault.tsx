@@ -96,6 +96,7 @@ export default function VaultScreen() {
     router.push({
       pathname: '/trade/deck',
       params: {
+        returnTab: 'vault',
         cards: JSON.stringify(selectedCardsData),
         receiveCards: receiveCardsPayload.length > 0 ? JSON.stringify(receiveCardsPayload) : undefined,
       },

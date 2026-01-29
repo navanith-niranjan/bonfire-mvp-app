@@ -53,6 +53,7 @@ export default function SubmitPartAScreen() {
       router.replace({
         pathname: returnPath as any,
         params: {
+          ...(params.returnTab && { returnTab: params.returnTab as string }),
           receiveCards: JSON.stringify(receiveArray),
           ...(params.originalCards && { cards: params.originalCards as string }),
         },
@@ -300,11 +301,18 @@ export default function SubmitPartAScreen() {
               shadowRadius: 8,
               elevation: 8,
             }}>
-            <Image
-              source={{ uri: item.image_small || item.image_large || '' }}
-              style={{ width: cardWidth, height: cardWidth * 1.4 }}
-              resizeMode="cover"
-            />
+            {(() => {
+              const uri = item.image_small || item.image_large || '';
+              return typeof uri === 'string' && uri.trim() !== '' ? (
+                <Image
+                  source={{ uri }}
+                  style={{ width: cardWidth, height: cardWidth * 1.4 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="bg-muted" style={{ width: cardWidth, height: cardWidth * 1.4 }} />
+              );
+            })()}
             {/* Quantity badge */}
             {isSelected && (
               <View className="absolute top-1 right-1">
@@ -502,6 +510,7 @@ export default function SubmitPartAScreen() {
                     ...(params.returnPath && { returnPath: params.returnPath as string }),
                     ...(params.source && { source: params.source as string }),
                     ...(params.originalCards && { originalCards: params.originalCards as string }),
+                    ...(params.returnTab && { returnTab: params.returnTab as string }),
                   },
                 });
               }}>

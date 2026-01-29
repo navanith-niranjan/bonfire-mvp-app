@@ -90,13 +90,13 @@ export function CardTradeDialog({ open, onOpenChange, card, onAddToTrade }: Card
         <View className="gap-6">
           {/* Card + Info row: image left, info right */}
           <View className="flex-row gap-4">
-            {card.image_small && (
+            {typeof card.image_small === 'string' && card.image_small.trim() !== '' ? (
               <Image
                 source={{ uri: card.image_small }}
                 style={{ width: 120, height: 168, borderRadius: 8 }}
                 resizeMode="cover"
               />
-            )}
+            ) : null}
             <View className="flex-1 justify-center gap-1 min-w-0">
               <Text className="text-sm font-semibold text-foreground" numberOfLines={2}>
                 {card.name}

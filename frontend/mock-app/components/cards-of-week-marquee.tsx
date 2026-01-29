@@ -124,11 +124,15 @@ export function CardsOfWeekMarquee({ count = 10, cards: providedCards, onAddToTr
                         borderRadius: cardRadius,
                         overflow: 'hidden',
                       }}>
-                      <Image
-                        source={{ uri: card.image_small! }}
-                        style={{ width: '100%', height: '100%' }}
-                        resizeMode="cover"
-                      />
+                      {typeof card.image_small === 'string' && card.image_small.trim() !== '' ? (
+                        <Image
+                          source={{ uri: card.image_small }}
+                          style={{ width: '100%', height: '100%' }}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View className="bg-muted" style={{ width: '100%', height: '100%' }} />
+                      )}
                     </View>
                   </View>
                 </TouchableOpacity>

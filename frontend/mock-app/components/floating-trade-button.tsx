@@ -5,7 +5,14 @@ import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { useTrade } from '@/providers/trade-provider';
 
-export function FloatingTradeButton() {
+type TabName = 'discover' | 'activity' | 'vault';
+
+export interface FloatingTradeButtonProps {
+  /** Tab to return to when user closes the trade screen */
+  returnTab: TabName;
+}
+
+export function FloatingTradeButton({ returnTab }: FloatingTradeButtonProps) {
   const router = useRouter();
   const { pendingCards, getReceiveCardsPayload, getGiveCards } = useTrade();
   const count = pendingCards.length;
@@ -16,6 +23,7 @@ export function FloatingTradeButton() {
     router.push({
       pathname: '/trade/deck',
       params: {
+        returnTab,
         receiveCards: JSON.stringify(receiveCards),
         cards: giveCards.length > 0 ? JSON.stringify(giveCards) : undefined,
       },

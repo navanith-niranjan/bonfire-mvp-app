@@ -49,6 +49,7 @@ export default function SubmitPartBScreen() {
   const returnPath = params.returnPath as string | undefined;
   const source = params.source as string | undefined;
   const originalCards = params.originalCards as string | undefined;
+  const returnTab = params.returnTab as string | undefined;
 
   // Parse selected cards from params
   const selectedCards = useMemo(() => {
@@ -237,11 +238,18 @@ export default function SubmitPartBScreen() {
         style={{ width: cardWidth }}
         className={`px-6 ${isActive ? 'opacity-100' : 'opacity-50'}`}>
         <View className="items-center justify-center">
-          <Image
-            source={{ uri: item.images?.large || item.images?.small || '' }}
-            style={{ width: cardWidth * 0.65, height: cardWidth * 0.91 }}
-            resizeMode="contain"
-          />
+          {(() => {
+            const uri = item.images?.large || item.images?.small || '';
+            return typeof uri === 'string' && uri.trim() !== '' ? (
+              <Image
+                source={{ uri }}
+                style={{ width: cardWidth * 0.65, height: cardWidth * 0.91 }}
+                resizeMode="contain"
+              />
+            ) : (
+              <View className="bg-muted" style={{ width: cardWidth * 0.65, height: cardWidth * 0.91 }} />
+            );
+          })()}
           <Text className="text-lg font-semibold text-center mt-3 mb-1">{item.name || 'Unknown Card'}</Text>
           <Text className="text-sm text-muted-foreground text-center">{item.set?.name || ''}</Text>
         </View>
@@ -427,6 +435,7 @@ export default function SubmitPartBScreen() {
                   router.push({
                     pathname: returnPath as any,
                     params: {
+                      ...(returnTab && { returnTab }),
                       receiveCards: JSON.stringify(cardsWithConditions),
                       ...(originalCards && { cards: originalCards }), // Preserve original cards
                     },

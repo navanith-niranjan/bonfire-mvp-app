@@ -11,6 +11,8 @@ export interface UseCardSearchOptions {
   debounceMs?: number;
   pageSize?: number;
   onResultsChange?: (cards: PokemonCard[]) => void;
+  /** Initial search query (e.g. from route params). Skips debounce for first fetch. */
+  initialQuery?: string;
 }
 
 export interface UseCardSearchReturn {
@@ -26,10 +28,10 @@ export interface UseCardSearchReturn {
  * Much simpler than the old implementation - just calls your backend
  */
 export function useCardSearch(options: UseCardSearchOptions = {}): UseCardSearchReturn {
-  const { debounceMs = 300, pageSize = 50, onResultsChange } = options;
+  const { debounceMs = 300, pageSize = 50, onResultsChange, initialQuery = '' } = options;
   
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
   const [cards, setCards] = useState<PokemonCard[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   

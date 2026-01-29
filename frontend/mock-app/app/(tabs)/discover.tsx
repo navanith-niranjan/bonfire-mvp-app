@@ -1,5 +1,7 @@
-import { View } from 'react-native';
-import { useState } from 'react';
+import { View, Keyboard, TouchableWithoutFeedback, InteractionManager } from 'react-native';
+import { useState, useCallback } from 'react';
+import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { UserMenu } from '@/components/user-menu';
 import { BalanceDisplay } from '@/components/balance-display';
 import { CardsOfWeekMarquee } from '@/components/cards-of-week-marquee';
@@ -16,10 +18,30 @@ import type { PokemonCard } from '@/types/card';
 import type { CardConditionPayload } from '@/components/card-trade-dialog';
 
 export default function DiscoverScreen() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   // Fetch cards once and share with CardsOfWeekMarquee and loading check
   const { cards } = useCardSearch({ pageSize: 60 });
   const { addCard } = useTrade();
+
+  const handleSearch = () => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    Keyboard.dismiss();
+    router.push({ pathname: '/search', params: { q } });
+  };
+
+  // When returning to discover (e.g. from search), clear input and close keyboard
+  useFocusEffect(
+    useCallback(() => {
+      setSearchQuery('');
+      // Run after transition so the keyboard is dismissed once the screen is visible
+      const task = InteractionManager.runAfterInteractions(() => {
+        Keyboard.dismiss();
+      });
+      return () => task.cancel();
+    }, [])
+  );
 
   const handleAddToTrade = ({ card, condition }: { card: PokemonCard; condition: CardConditionPayload }) => {
     addCard(card, condition);
@@ -27,6 +49,7 @@ export default function DiscoverScreen() {
 
   return (
     <ScreenWrapper waitForCards={true}>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <View className="flex-1 bg-background">
       {/* Header with User Menu and Balance */}
       <View className="absolute top-0 left-0 right-0 p-6 pt-16 flex-row justify-between items-center z-50 bg-background"
@@ -67,9 +90,7 @@ export default function DiscoverScreen() {
             size="icon"
             disabled={!searchQuery.trim()}
             className="rounded-full bg-black"
-            onPress={() => {
-              // TODO: Handle search
-            }}>
+            onPress={handleSearch}>
             <Icon 
               as={ArrowRight} 
               className={searchQuery.trim() ? "size-5 text-white" : "size-5 text-white opacity-50"} 
@@ -89,8 +110,9 @@ export default function DiscoverScreen() {
 
         <CardsOfWeekMarquee count={10} cards={cards} onAddToTrade={handleAddToTrade} />
       </View>
-      <FloatingTradeButton />
+      <FloatingTradeButton returnTab="discover" />
     </View>
+    </TouchableWithoutFeedback>
     </ScreenWrapper>
   );
 }

@@ -78,6 +78,8 @@ export default function SelectInventoryScreen() {
     });
   };
 
+  const returnTab = (params.returnTab as string) || 'discover';
+
   const handleCancel = () => {
     router.back();
   };
@@ -87,6 +89,7 @@ export default function SelectInventoryScreen() {
     router.push({
       pathname: '/trade/deck',
       params: {
+        returnTab,
         cards: JSON.stringify(selectedCardsData),
         ...(params.receiveCards && { receiveCards: params.receiveCards as string }),
       },
@@ -114,7 +117,7 @@ export default function SelectInventoryScreen() {
         style={{ width: cardWidth, marginBottom: 16 }}
         activeOpacity={0.7}>
         <View className="relative">
-          {item.image_url ? (
+          {typeof item.image_url === 'string' && item.image_url.trim() !== '' ? (
             <Image
               source={{ uri: item.image_url }}
               style={{ width: cardWidth, height: cardHeight }}
