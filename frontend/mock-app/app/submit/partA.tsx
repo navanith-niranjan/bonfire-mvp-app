@@ -32,7 +32,34 @@ export default function SubmitPartAScreen() {
   });
 
   const handleBack = () => {
-    router.back();
+    const returnPath = params.returnPath as string | undefined;
+    const source = params.source as string | undefined;
+    if (returnPath && source === 'trade') {
+      // Return to trade deck with current selection (may be empty)
+      const receiveArray: any[] = [];
+      cardQuantities.forEach((quantity, cardId) => {
+        const card = selectedCards.get(cardId);
+        if (card) {
+          const c = card as any;
+          for (let i = 0; i < quantity; i++) {
+            receiveArray.push({
+              ...card,
+              set: c.set ?? { name: c.set_name ?? '' },
+              images: c.images ?? { small: c.image_small ?? '', large: c.image_large ?? '' },
+            });
+          }
+        }
+      });
+      router.replace({
+        pathname: returnPath as any,
+        params: {
+          receiveCards: JSON.stringify(receiveArray),
+          ...(params.originalCards && { cards: params.originalCards as string }),
+        },
+      });
+    } else {
+      router.back();
+    }
   };
 
   // Initialize with existing receive cards if editing

@@ -1,11 +1,13 @@
 import { Text } from '@/components/ui/text';
 import { View, ScrollView, RefreshControl } from 'react-native';
+import { ScreenWrapper } from '@/components/screen-wrapper';
 import { useTransactions } from '@/hooks/use-transactions';
 import { ActivityIndicator } from 'react-native';
 import { ArrowUpRight, ArrowDownRight, ArrowLeftRight } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useRef } from 'react';
+import { FloatingTradeButton } from '@/components/floating-trade-button';
 
 export default function ActivityScreen() {
   const { transactions, isLoading, refreshTransactions } = useTransactions();
@@ -68,7 +70,8 @@ export default function ActivityScreen() {
   };
 
   return (
-    <View className="flex-1 bg-background">
+    <ScreenWrapper>
+      <View className="flex-1 bg-background">
       <View className="px-6 pt-20 pb-4">
         <Text className="text-2xl font-bold">Activity</Text>
       </View>
@@ -251,7 +254,9 @@ export default function ActivityScreen() {
           })}
         </ScrollView>
       )}
+      <FloatingTradeButton />
     </View>
+    </ScreenWrapper>
   );
 }
 

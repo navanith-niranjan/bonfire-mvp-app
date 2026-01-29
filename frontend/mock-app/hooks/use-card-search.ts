@@ -46,6 +46,13 @@ export function useCardSearch(options: UseCardSearchOptions = {}): UseCardSearch
 
   // Search cards
   useEffect(() => {
+    // Skip fetching if pageSize is 0 (cards are provided externally)
+    if (pageSize === 0) {
+      setIsSearching(false);
+      setCards([]);
+      return;
+    }
+
     // Cancel previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();

@@ -1,6 +1,6 @@
 import { View, Image, useWindowDimensions, FlatList, ScrollView, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
@@ -20,6 +20,7 @@ import { BalanceDisplay } from '@/components/balance-display';
 import { useInventory } from '@/hooks/use-inventory';
 import { useAuthContext } from '@/hooks/use-auth-context';
 import { useTransactions } from '@/hooks/use-transactions';
+import { useTrade } from '@/providers/trade-provider';
 import type { UserCard } from '@/types/inventory';
 import { ActivityIndicator } from 'react-native';
 
@@ -38,6 +39,7 @@ export default function TradeDeckScreen() {
   const { refreshInventory } = useInventory();
   const { session } = useAuthContext();
   const { refreshTransactions } = useTransactions();
+  const { giveCards, setGiveCards, getReceiveCardsPayload, setReceiveCardsFromDeck } = useTrade();
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [giveMoneyAmount, setGiveMoneyAmount] = useState('');
   const [moneyError, setMoneyError] = useState('');
@@ -48,98 +50,85 @@ export default function TradeDeckScreen() {
   const giveFlatListRef = useRef<FlatList>(null);
   const receiveFlatListRef = useRef<FlatList>(null);
 
-  // Parse selected cards from params
-  const selectedCards = useMemo(() => {
-    try {
-      if (params.cards && typeof params.cards === 'string') {
-        return JSON.parse(params.cards) as UserCard[];
-      }
-    } catch (error) {
-      console.error('Error parsing cards:', error);
-    }
-    return [];
-  }, [params.cards]);
+  // Global You Give list from provider
+  const selectedCards = giveCards;
 
-  // Parse receive cards from params (returned from partB)
+  // Convert receive payload to UserCard[] for display (global You Receive from provider)
   const receiveCards = useMemo(() => {
-    try {
-      if (params.receiveCards && typeof params.receiveCards === 'string') {
-        const cards = JSON.parse(params.receiveCards);
-        // Convert PokemonCard format to UserCard format for display
-        return cards.map((card: any, index: number) => {
-          // Handle condition - it can be an object with type and grade, or a string
-          let conditionString: string | null = null;
-          if (card.condition) {
-            if (typeof card.condition === 'object' && card.condition.type) {
-              // Format: "PSA 10" or "Raw - Near Mint" or "Beckett 9.5"
-              if (card.condition.type === 'Raw' && card.condition.rawCondition) {
-                // Map raw conditions to full names
-                const rawConditionMap: Record<string, string> = {
-                  'NM': 'Near Mint',
-                  'LP': 'Lightly Played',
-                  'MP': 'Moderately Played',
-                  'HP': 'Heavily Played',
-                  'D': 'Damaged',
-                };
-                const rawConditionName = rawConditionMap[card.condition.rawCondition] || card.condition.rawCondition;
-                conditionString = `Raw - ${rawConditionName}`;
-              } else if (card.condition.grade) {
-                conditionString = `${card.condition.type} ${card.condition.grade}`;
-              } else {
-                conditionString = card.condition.type;
-              }
-            } else if (typeof card.condition === 'string') {
-              // If it's already a string (like "Raw - Near Mint"), use it as-is
-              conditionString = card.condition;
-            }
-          }
-          
-          // Generate a unique ID - use instanceId if available, otherwise create one from id and index
-          let uniqueId: number;
-          if (card.instanceId) {
-            const parts = card.instanceId.split('-');
-            const parsed = parts.length > 0 ? parseInt(parts[0]) : NaN;
-            uniqueId = isNaN(parsed) ? index + 1000000 : parsed; // Use large offset to avoid conflicts
-          } else if (card.id) {
-            const parsed = typeof card.id === 'string' ? parseInt(card.id) : (typeof card.id === 'number' ? card.id : NaN);
-            uniqueId = isNaN(parsed) ? index + 2000000 : parsed + index; // Add index to ensure uniqueness
+    const cards = getReceiveCardsPayload();
+    return cards.map((card: any, index: number) => {
+      let conditionString: string | null = null;
+      if (card.condition) {
+        if (typeof card.condition === 'object' && card.condition.type) {
+          if (card.condition.type === 'Raw' && card.condition.rawCondition) {
+            const rawConditionMap: Record<string, string> = {
+              'NM': 'Near Mint',
+              'LP': 'Lightly Played',
+              'MP': 'Moderately Played',
+              'HP': 'Heavily Played',
+              'D': 'Damaged',
+            };
+            const rawConditionName = rawConditionMap[card.condition.rawCondition] || card.condition.rawCondition;
+            conditionString = `Raw - ${rawConditionName}`;
+          } else if (card.condition.grade) {
+            conditionString = `${card.condition.type} ${card.condition.grade}`;
           } else {
-            uniqueId = index + 3000000; // Use large offset for fallback
+            conditionString = card.condition.type;
           }
-          
-          // Prepare item_data object
-          const itemData: Record<string, any> = {
-            condition: conditionString,
-            set: card.set?.name || null,
-            grade: card.condition?.grade || null,
-          };
-          
-          // Include market_price if available (from partB)
-          if (card.market_price !== null && card.market_price !== undefined && typeof card.market_price === 'number') {
-            itemData.market_price = card.market_price;
-          }
-          
-          return {
-            id: uniqueId,
-            user_id: '',
-            name: card.name || 'Unknown Card',
-            image_url: card.images?.large || card.images?.small || null,
-            status: 'trading' as const,
-            collectible_type: 'pokemon',
-            external_id: card.id || null,
-            external_api: 'pokemon-tcg',
-            item_data: itemData,
-            submitted_at: null,
-            vaulted_at: null,
-            created_at: null,
-          };
-        }) as UserCard[];
+        } else if (typeof card.condition === 'string') {
+          conditionString = card.condition;
+        }
       }
-    } catch (error) {
-      console.error('Error parsing receive cards:', error);
+      let uniqueId: number;
+      if (card.instanceId) {
+        const parts = String(card.instanceId).split('-');
+        const parsed = parts.length > 0 ? parseInt(parts[0], 10) : NaN;
+        uniqueId = isNaN(parsed) ? index + 1000000 : parsed;
+      } else if (card.id !== undefined) {
+        const parsed = typeof card.id === 'string' ? parseInt(card.id, 10) : (typeof card.id === 'number' ? card.id : NaN);
+        uniqueId = isNaN(parsed) ? index + 2000000 : parsed + index;
+      } else {
+        uniqueId = index + 3000000;
+      }
+      const itemData: Record<string, any> = {
+        condition: conditionString,
+        set: card.set?.name || null,
+        grade: card.condition?.grade || null,
+      };
+      if (card.market_price !== null && card.market_price !== undefined && typeof card.market_price === 'number') {
+        itemData.market_price = card.market_price;
+      }
+      return {
+        id: uniqueId,
+        user_id: '',
+        name: card.name || 'Unknown Card',
+        image_url: card.images?.large || card.images?.small || null,
+        status: 'trading' as const,
+        collectible_type: 'pokemon',
+        external_id: card.id ?? null,
+        external_api: 'pokemon-tcg',
+        item_data: itemData,
+        submitted_at: null,
+        vaulted_at: null,
+        created_at: null,
+      };
+    }) as UserCard[];
+  }, [getReceiveCardsPayload]);
+
+  // Sync navigation params into provider when deck is opened with params (e.g. from vault or returning from partA)
+  useEffect(() => {
+    if (params.cards && typeof params.cards === 'string') {
+      try {
+        setGiveCards(JSON.parse(params.cards) as UserCard[]);
+      } catch {
+        setGiveCards([]);
+      }
     }
-    return [];
-  }, [params.receiveCards]);
+    if (params.receiveCards !== undefined) {
+      const raw = typeof params.receiveCards === 'string' ? params.receiveCards : '[]';
+      setReceiveCardsFromDeck(raw);
+    }
+  }, [params.cards, params.receiveCards, setGiveCards, setReceiveCardsFromDeck]);
 
   // Get card price from item_data
   // TODO: In future, fetch condition/grade-specific prices from pricing API
@@ -217,7 +206,7 @@ export default function TradeDeckScreen() {
   }, [requiredMoney, giveMoneyAmount]);
 
   const handleCancel = () => {
-    router.push('/(tabs)/vault');
+    router.replace('/(tabs)' as any);
   };
 
   const handleMoneyChange = (text: string) => {
@@ -575,7 +564,7 @@ export default function TradeDeckScreen() {
             
             {/* Container with background for card and indicator */}
             <View className="bg-black rounded-lg p-4">
-              {/* Edit Button - Top Right */}
+              {/* Edit Button - Top Right (when has cards) */}
               {selectedCards.length > 0 && (
                 <View className="absolute top-4 right-4 z-10">
                   <Button
@@ -584,11 +573,12 @@ export default function TradeDeckScreen() {
                     className="rounded-full"
                     style={{ width: 24, height: 24 }}
                     onPress={() => {
+                      const receivePayload = getReceiveCardsPayload();
                       router.push({
                         pathname: '/trade/select-inventory',
                         params: {
-                          cards: params.cards as string | undefined,
-                          ...(params.receiveCards && { receiveCards: params.receiveCards as string }),
+                          cards: selectedCards.length > 0 ? JSON.stringify(selectedCards) : undefined,
+                          receiveCards: receivePayload.length > 0 ? JSON.stringify(receivePayload) : undefined,
                         },
                       });
                     }}>
@@ -596,7 +586,7 @@ export default function TradeDeckScreen() {
                   </Button>
                 </View>
               )}
-              {/* Swipeable Card Container */}
+              {/* Swipeable Card Container or centered Plus */}
               {selectedCards.length > 0 ? (
                 <View className="relative">
                   <FlatList
@@ -628,8 +618,22 @@ export default function TradeDeckScreen() {
                   />
                 </View>
               ) : (
-                <View style={{ minHeight: 100 }} className="items-center justify-center">
-                  <Text className="text-muted-foreground text-sm">No cards selected</Text>
+                <View style={{ minHeight: cardHeight }} className="items-center justify-center py-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full w-12 h-12"
+                    onPress={() => {
+                      const receivePayload = getReceiveCardsPayload();
+                      router.push({
+                        pathname: '/trade/select-inventory',
+                        params: {
+                          receiveCards: receivePayload.length > 0 ? JSON.stringify(receivePayload) : undefined,
+                        },
+                      });
+                    }}>
+                    <Icon as={Plus} className="size-6" />
+                  </Button>
                 </View>
               )}
               
@@ -693,14 +697,14 @@ export default function TradeDeckScreen() {
                     className="rounded-full"
                     style={{ width: 24, height: 24 }}
                     onPress={() => {
-                      // Navigate to partA to add/remove cards
+                      const receivePayload = getReceiveCardsPayload();
                       router.push({
                         pathname: '/submit/partA',
                         params: {
                           returnPath: '/trade/deck',
                           source: 'trade',
-                          originalCards: params.cards as string | undefined,
-                          existingReceiveCards: params.receiveCards as string | undefined,
+                          originalCards: selectedCards.length > 0 ? JSON.stringify(selectedCards) : undefined,
+                          existingReceiveCards: receivePayload.length > 0 ? JSON.stringify(receivePayload) : undefined,
                         },
                       });
                     }}>
@@ -764,7 +768,7 @@ export default function TradeDeckScreen() {
                         params: {
                           returnPath: '/trade/deck',
                           source: 'trade',
-                          originalCards: params.cards as string | undefined, // Preserve original cards
+                          originalCards: selectedCards.length > 0 ? JSON.stringify(selectedCards) : undefined,
                         },
                       });
                     }}>

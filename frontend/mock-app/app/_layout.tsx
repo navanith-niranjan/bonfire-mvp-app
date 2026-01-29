@@ -11,6 +11,7 @@ import AuthProvider from '@/providers/auth-provider';
 import { WalletProvider } from '@/providers/wallet-provider';
 import { InventoryProvider } from '@/providers/inventory-provider';
 import { TransactionsProvider } from '@/providers/transactions-provider';
+import { TradeProvider } from '@/providers/trade-provider';
 import { SplashScreenController } from '@/components/splash-screen-controller';
 import { useAuthContext } from '@/hooks/use-auth-context';
 
@@ -84,10 +85,12 @@ export default function RootLayout() {
         <WalletProvider>
           <InventoryProvider>
             <TransactionsProvider>
-              <SplashScreenController />
-              <RootNavigator />
-              <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-              <PortalHost />
+              <TradeProvider>
+                <SplashScreenController />
+                <RootNavigator />
+                <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+                <PortalHost />
+              </TradeProvider>
             </TransactionsProvider>
           </InventoryProvider>
         </WalletProvider>

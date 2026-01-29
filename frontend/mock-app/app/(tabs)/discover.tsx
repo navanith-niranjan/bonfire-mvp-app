@@ -1,17 +1,32 @@
-import { View, ScrollView } from 'react-native';
+import { View } from 'react-native';
 import { useState } from 'react';
 import { UserMenu } from '@/components/user-menu';
 import { BalanceDisplay } from '@/components/balance-display';
+import { CardsOfWeekMarquee } from '@/components/cards-of-week-marquee';
+import { ScreenWrapper } from '@/components/screen-wrapper';
+import { useCardSearch } from '@/hooks/use-card-search';
 import { Text } from '@/components/ui/text';
 import { Input } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Search, ChartLine } from 'lucide-react-native';
+import { FloatingTradeButton } from '@/components/floating-trade-button';
+import { useTrade } from '@/providers/trade-provider';
+import type { PokemonCard } from '@/types/card';
+import type { CardConditionPayload } from '@/components/card-trade-dialog';
 
 export default function DiscoverScreen() {
   const [searchQuery, setSearchQuery] = useState('');
+  // Fetch cards once and share with CardsOfWeekMarquee and loading check
+  const { cards } = useCardSearch({ pageSize: 60 });
+  const { addCard } = useTrade();
+
+  const handleAddToTrade = ({ card, condition }: { card: PokemonCard; condition: CardConditionPayload }) => {
+    addCard(card, condition);
+  };
 
   return (
+    <ScreenWrapper waitForCards={true}>
     <View className="flex-1 bg-background">
       {/* Header with User Menu and Balance */}
       <View className="absolute top-0 left-0 right-0 p-6 pt-16 flex-row justify-between items-center z-50 bg-background"
@@ -23,9 +38,9 @@ export default function DiscoverScreen() {
       </View>
 
       {/* Main Content */}
-      <ScrollView 
+      <View 
         className="flex-1 px-6"
-        contentContainerStyle={{ 
+        style={{ 
           paddingTop: 160,
         }}>
         <Text className="text-6xl font-PlayfairDisplayItalic text-foreground text-center">
@@ -71,8 +86,12 @@ export default function DiscoverScreen() {
             className="size-5 text-foreground" 
           />
         </View>
-      </ScrollView>
+
+        <CardsOfWeekMarquee count={10} cards={cards} onAddToTrade={handleAddToTrade} />
+      </View>
+      <FloatingTradeButton />
     </View>
+    </ScreenWrapper>
   );
 }
 

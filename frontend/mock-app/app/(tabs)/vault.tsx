@@ -2,12 +2,14 @@ import { View, FlatList } from 'react-native';
 import { useRef, useState, useCallback } from 'react';
 import { WalletCard } from '@/components/wallet-card';
 import { InventoryCard } from '@/components/inventory-card';
+import { ScreenWrapper } from '@/components/screen-wrapper';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { ActivityIndicator } from 'react-native';
 import { ArrowDownUp, Gift, Send, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useInventory } from '@/hooks/use-inventory';
+import { useTrade } from '@/providers/trade-provider';
 
 const WALLET_CARD_HEIGHT = 260;
 
@@ -21,6 +23,7 @@ export default function VaultScreen() {
   const [redeemingCardIds, setRedeemingCardIds] = useState<Set<number>>(new Set());
   const router = useRouter();
   const { removeCards, cards } = useInventory();
+  const { getReceiveCardsPayload } = useTrade();
    
   // When inventory has scrolled over wallet, inventory blocks touches
   const isInventoryOverWallet = scrollY > 0;
@@ -88,10 +91,14 @@ export default function VaultScreen() {
     // Get selected cards data
     const selectedCardsData = cards.filter(card => selectedCardIds.has(card.id));
     
-    // Navigate to trade deck with selected cards
+    // Navigate to trade deck with selected cards and persist receive cards from provider
+    const receiveCardsPayload = getReceiveCardsPayload();
     router.push({
       pathname: '/trade/deck',
-      params: { cards: JSON.stringify(selectedCardsData) },
+      params: {
+        cards: JSON.stringify(selectedCardsData),
+        receiveCards: receiveCardsPayload.length > 0 ? JSON.stringify(receiveCardsPayload) : undefined,
+      },
     });
   };
 
@@ -118,7 +125,8 @@ export default function VaultScreen() {
   );
 
   return (
-    <View className="flex-1 bg-background">
+    <ScreenWrapper>
+      <View className="flex-1 bg-background">
       {/* Fixed Wallet Card at top */}
       <View
         className="absolute top-0 left-0 right-0"
@@ -306,5 +314,6 @@ export default function VaultScreen() {
         </View>
       )}
     </View>
+    </ScreenWrapper>
   );
 }
