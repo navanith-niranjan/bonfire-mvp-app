@@ -1,5 +1,6 @@
 import '@/global.css';
 
+import React from 'react';
 import { NAV_THEME } from '@/lib/theme';
 import { ThemeProvider } from '@react-navigation/native';
 import { PortalHost } from '@rn-primitives/portal';
@@ -63,7 +64,14 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
-  const { colorScheme } = useColorScheme();
+  const { colorScheme, setColorScheme } = useColorScheme();
+
+  // Always use dark theme (ignore system preference)
+  React.useEffect(() => {
+    setColorScheme('dark');
+  }, [setColorScheme]);
+
+  const effectiveColorScheme = 'dark' as const;
 
   const [loaded] = useFonts({
     'Gloock-Regular': require('../assets/fonts/Gloock-Regular.ttf'),
@@ -81,7 +89,7 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
+    <ThemeProvider value={NAV_THEME[effectiveColorScheme]}>
       <AuthProvider>
         <WalletProvider>
           <InventoryProvider>
@@ -89,7 +97,7 @@ export default function RootLayout() {
               <TradeProvider>
                 <SplashScreenController />
                 <RootNavigator />
-                <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+                <StatusBar style="light" />
                 <PortalHost />
               </TradeProvider>
             </TransactionsProvider>

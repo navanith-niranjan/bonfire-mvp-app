@@ -2,15 +2,19 @@ import 'react-native-url-polyfill/auto'
 import { createClient } from '@supabase/supabase-js'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
+const isServer = typeof window === 'undefined'
+
 const ExpoWebSecureStoreAdapter = {
   getItem: (key: string) => {
-    console.debug("getItem", { key })
+    if (isServer) return Promise.resolve(null)
     return AsyncStorage.getItem(key)
   },
   setItem: (key: string, value: string) => {
+    if (isServer) return Promise.resolve()
     return AsyncStorage.setItem(key, value)
   },
   removeItem: (key: string) => {
+    if (isServer) return Promise.resolve()
     return AsyncStorage.removeItem(key)
   },
 };
