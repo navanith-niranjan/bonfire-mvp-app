@@ -1,22 +1,30 @@
 """
 OAuth callback interstitial page for mobile app redirect.
 
+Supabase redirects the browser to this URL with tokens in the hash fragment.
+Optional query param: scheme=exp for Expo Go; omit for dev/prod (mock-app).
+"""
+import json
+
 Supabase redirects the browser to this URL with tokens in the hash fragment
 (e.g. /oauth/callback#access_token=...&refresh_token=...). This page is
 served to the user; the client-side script reads the hash and shows an
 "Open app" link so Android (Chrome Custom Tabs) has a user gesture and
 hands off to the app via the custom scheme.
+
+Optional query param: scheme=exp for Expo Go (so "Open app" uses exp://);
+omit or scheme=mock-app for dev/prod builds (mock-app://).
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
 router = APIRouter(tags=["oauth"])
 
-# Must match the app's custom scheme (e.g. app.json "scheme")
-APP_SCHEME = "mock-app"
+# Default scheme for dev/prod builds (app.json "scheme")
+DEFAULT_SCHEME = "mock-app"
 
-OAUTH_CALLBACK_HTML = f"""<!DOCTYPE html>
+_HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -56,7 +64,7 @@ OAUTH_CALLBACK_HTML = f"""<!DOCTYPE html>
 
   <script>
     (function () {{
-      var scheme = '{APP_SCHEME}';
+      var scheme = {scheme_json};
       var hash = window.location.hash;
       var openBtn = document.getElementById('openApp');
       var message = document.getElementById('message');
@@ -85,12 +93,21 @@ OAUTH_CALLBACK_HTML = f"""<!DOCTYPE html>
 
 
 @router.get("/oauth/callback", response_class=HTMLResponse)
-async def oauth_callback_page():
+async def oauth_callback_page(
+    scheme: str | None = Query(None, description="Deep link scheme: exp for Expo Go, mock-app for dev/prod"),
+):
     """
     Serves the OAuth callback interstitial page.
 
     Supabase redirects the browser here with tokens in the URL hash.
     This page shows "Sign in successful" and an "Open app" link so the
     user can return to the app (required for Android Chrome Custom Tabs).
+
+    Use ?scheme=exp when redirecting from Expo Go so the link opens Expo Go.
     """
-    return OAUTH_CALLBACK_HTML
+    scheme_value = (scheme or DEFAULT_SCHEME).strip().lower()
+    if not scheme_value or not scheme_value.replace("-", "").replace("_", "").isalnum():
+        scheme_value = DEFAULT_SCHEME
+    scheme_json = json.dumps(scheme_value)
+    html = _HTML_TEMPLATE.format(scheme_json=scheme_json)
+    return html

@@ -20,16 +20,21 @@ type GoogleSignInButtonProps = {
 export function GoogleSignInButton({ variant = 'full' }: GoogleSignInButtonProps = {}) {
   const router = useRouter();
   
-  // Use interstitial URL from env (e.g. Railway /oauth/callback) for Android OAuth redirect; otherwise custom scheme
-  const oauthCallbackUrl = process.env.EXPO_PUBLIC_OAUTH_CALLBACK_URL?.trim();
+  // Use interstitial (Railway) when EXPO_PUBLIC_OAUTH_CALLBACK_URL is set so Android isn't stuck in the browser.
+  // In Expo Go, append ?scheme=exp so "Open app" uses exp:// and opens Expo Go; in dev/prod builds use default mock-app.
+  const isExpoGo = Constants.appOwnership === 'expo';
+  let oauthCallbackUrl = process.env.EXPO_PUBLIC_OAUTH_CALLBACK_URL?.trim();
+  if (oauthCallbackUrl && !/^https?:\/\//i.test(oauthCallbackUrl)) {
+    oauthCallbackUrl = 'https://' + oauthCallbackUrl;
+  }
   const schemeValue = Constants.expoConfig?.scheme;
   const scheme: string = Array.isArray(schemeValue) ? schemeValue[0] : (schemeValue || 'mock-app');
 
-  const redirectToResult = makeRedirectUri({ scheme });
+  const redirectToResult = makeRedirectUri(isExpoGo ? undefined : { scheme });
   let redirectTo: string = Array.isArray(redirectToResult) ? redirectToResult[0] : redirectToResult;
   if (oauthCallbackUrl) {
-    redirectTo = oauthCallbackUrl;
-  } else if (redirectTo.startsWith('exp://') || redirectTo.includes('localhost') || redirectTo.includes('192.168')) {
+    redirectTo = isExpoGo ? `${oauthCallbackUrl}?scheme=exp` : oauthCallbackUrl;
+  } else if (!isExpoGo && (redirectTo.startsWith('exp://') || redirectTo.includes('localhost') || redirectTo.includes('192.168'))) {
     redirectTo = `${scheme}://`;
   }
 
