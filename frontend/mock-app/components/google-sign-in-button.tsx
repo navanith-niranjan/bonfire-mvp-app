@@ -38,19 +38,33 @@ export function GoogleSignInButton({ variant = 'full' }: GoogleSignInButtonProps
     redirectTo = `${scheme}://`;
   }
 
-  const createSessionFromUrl = async (url: string) => {
-    const { params, errorCode } = QueryParams.getQueryParams(url);
-
-    if (errorCode) throw new Error(errorCode);
+  const createSessionFromUrl = async (
+    url: string,
+    preParsedParams?: Record<string, string> | null
+  ) => {
+    let params = preParsedParams;
+    if (params == null) {
+      try {
+        const result = QueryParams.getQueryParams(url);
+        if (result.errorCode) throw new Error(result.errorCode);
+        params = result.params;
+      } catch (err) {
+        const hashIdx = url.indexOf('#');
+        if (hashIdx >= 0) {
+          const searchParams = new URLSearchParams(url.slice(hashIdx + 1));
+          params = Object.fromEntries(searchParams.entries());
+        } else {
+          throw err;
+        }
+      }
+    }
     const { access_token, refresh_token } = params;
-
     if (!access_token) return;
 
     const { data, error } = await supabase.auth.setSession({
       access_token,
       refresh_token,
     });
-    
     if (error) throw error;
     return data.session;
   };
@@ -59,18 +73,27 @@ export function GoogleSignInButton({ variant = 'full' }: GoogleSignInButtonProps
   // Only process URLs that contain OAuth tokens (access_token)
   const url = Linking.useURL();
   useEffect(() => {
-    if (url) {
-      // Check if this is an OAuth callback URL (contains access_token)
-      const { params } = QueryParams.getQueryParams(url);
-      if (params.access_token) {
-        console.debug('Processing OAuth callback from deep link:', url);
-        createSessionFromUrl(url).then(() => {
-          router.replace('/');
-        }).catch((error) => {
-          console.error('Error processing OAuth callback:', error);
-        });
+    if (!url) return;
+    let params: Record<string, string> | null = null;
+    try {
+      const result = QueryParams.getQueryParams(url);
+      params = result.params;
+    } catch (err) {
+      // Android can throw from URL() with custom schemes (exp://); fallback: parse fragment manually
+      console.warn('getQueryParams failed, trying fragment parse:', err);
+      const hashIdx = url.indexOf('#');
+      if (hashIdx >= 0) {
+        const searchParams = new URLSearchParams(url.slice(hashIdx + 1));
+        params = Object.fromEntries(searchParams.entries());
       }
     }
+    if (!params?.access_token) return;
+    console.debug('Processing OAuth callback from deep link:', url);
+    createSessionFromUrl(url, params)
+      .then(() => router.replace('/'))
+      .catch((error) => {
+        console.error('Error processing OAuth callback:', error);
+      });
   }, [url, router]);
 
   async function onSignInButtonPress() {
