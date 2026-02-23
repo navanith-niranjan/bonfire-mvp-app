@@ -2,6 +2,8 @@
 
 **Secure & instant digital trading** — a full-stack MVP for trading collectibles (starting with Pokémon TCG cards). Users sign in, manage a wallet, build an inventory, discover cards, and trade with others.
 
+Click here to check out the landing page: https://www.bvnfire.com/
+
 ---
 
 ## Overview
