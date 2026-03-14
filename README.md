@@ -1,4 +1,4 @@
-# Bonfire MVP
+# BONFIRE MVP
 
 **Secure & instant digital trading** — a full-stack MVP for trading collectibles (starting with Pokémon TCG cards). Users sign in, manage a wallet, build an inventory, discover cards, and trade with others.
 
